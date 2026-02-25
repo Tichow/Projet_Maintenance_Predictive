@@ -1,3 +1,4 @@
 # === Machine Learning ===
 pandas>=2.0
 matplotlib>=3.7
+scikit-learn>=1.3
