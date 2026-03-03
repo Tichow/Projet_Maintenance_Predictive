@@ -1,0 +1,136 @@
+Starting AI validation on desktop with custom dataset : C:\Users\matte\Documents\embedded_AI\Projet_Maintenance_Predictive\modele\x_test.npy... 
+C:/Users/matte/STM32Cube/Repository/Packs/STMicroelectronics/X-CUBE-AI/10.2.0/Utilities/windows/stedgeai.exe validate --target stm32l4 --name ai4i -m C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/modele/modele_maintenance.tflite --compression none --verbosity 1 --workspace C:/Users/matte/AppData/Local/Temp/mxAI_workspace4530363287950013082623915023786438 --output C:/Users/matte/.stm32cubemx/ai4i_output --valoutput C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/modele/y_test.npy --valinput C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/modele/x_test.npy 
+ST Edge AI Core v2.2.0-20266 2adc00962 
+Setting validation data... 
+ loading file: C:\Users\matte\Documents\embedded_AI\Projet_Maintenance_Predictive\modele\x_test.npy 
+   samples are reshaped: (1996, 8) -> (1996, 1, 1, 8) 
+ loading file: C:\Users\matte\Documents\embedded_AI\Projet_Maintenance_Predictive\modele\y_test.npy 
+   samples are reshaped: (1996, 5) -> (1996, 1, 1, 5) 
+   I[1]: (1996, 1, 1, 8)/float32, min/max=[-3.733539, 6.838861], mean/std=[-0.001259, 1.006808] 
+   O[1]: (1996, 1, 1, 5)/float32, min/max=[0.000000, 1.000000], mean/std=[0.200000, 0.400000] 
+Creating c (debug) info json file C:\Users\matte\.stm32cubemx\ai4i_output\ai4i_c_info.json 
+Copying the AI runtime files to the user workspace: C:\Users\matte\AppData\Local\Temp\mxAI_workspace4530363287950013082623915023786438\inspector_ai4i\workspace 
+ from: C:\Users\matte\STM32Cube\Repository\Packs\STMicroelectronics\X-CUBE-AI\10.2.0\Utilities\windows\targets\common\EmbedNets\tools\inspector\workspace 
+  
+ Exec/report summary (validate) 
+ ----------------------------------------------------------------------------------------------------------------------------- 
+ model file         :   C:\Users\matte\Documents\embedded_AI\Projet_Maintenance_Predictive\modele\modele_maintenance.tflite    
+ type               :   tflite                                                                                                 
+ c_name             :   ai4i                                                                                                   
+ compression        :   none                                                                                                   
+ options            :   allocate-inputs, allocate-outputs                                                                      
+ optimization       :   balanced                                                                                               
+ target/series      :   stm32l4                                                                                                
+ workspace dir      :   C:\Users\matte\AppData\Local\Temp\mxAI_workspace4530363287950013082623915023786438                     
+ output dir         :   C:\Users\matte\.stm32cubemx\ai4i_output                                                                
+ vinput files       :   C:\Users\matte\Documents\embedded_AI\Projet_Maintenance_Predictive\modele\x_test.npy                   
+ voutput files      :   C:\Users\matte\Documents\embedded_AI\Projet_Maintenance_Predictive\modele\y_test.npy                   
+ model_fmt          :   float                                                                                                  
+ model_name         :   modele_maintenance                                                                                     
+ model_hash         :   0x22a3aca055ad4bab33a02af04a93fcbf                                                                     
+ params #           :   3,269 items (12.77 KiB)                                                                                
+ ----------------------------------------------------------------------------------------------------------------------------- 
+ input 1/1          :   'serving_default_ke..ensor_1470', f32(1x8), 32 Bytes, activations                                      
+ output 1/1         :   'nl_4', f32(1x5), 20 Bytes, activations                                                                
+ macc               :   3,456                                                                                                  
+ weights (ro)       :   13,076 B (12.77 KiB) (1 segment)                                                                       
+ activations (rw)   :   384 B (384 B) (1 segment) *                                                                            
+ ram (total)        :   384 B (384 B) = 384 + 0 + 0                                                                            
+ ----------------------------------------------------------------------------------------------------------------------------- 
+ (*) 'input'/'output' buffers are allocated in the activations buffer 
+Running the TFlite model... 
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU. 
+Running the ST.AI c-model (AI RUNNER)...(name=ai4i, mode=HOST) 
+ DLL Driver v2.0 - Direct Python binding (C:\Users\matte\AppData\Local\Temp\mxAI_workspace4530363287950013082623915023786438\inspector_ai4i\workspace\lib\libai_ai4i.dll) ['ai4i'] 
+  Summary 'ai4i' - ['ai4i'] 
+  ---------------------------------------------------------------------------------------------- 
+  I[1/1] 'input_1'    :   f32[1,1,1,8], 32 Bytes, in activations buffer 
+  O[1/1] 'output_1'   :   f32[1,1,1,5], 20 Bytes, in activations buffer 
+  n_nodes             :   8 
+  activations         :   384 
+  weights             :   13076 
+  macc                :   3456 
+  hash                :   0x22a3aca055ad4bab33a02af04a93fcbf 
+  compile_datetime    :   Mar  3 2026 21:00:48 
+  ---------------------------------------------------------------------------------------------- 
+  protocol            :   DLL Driver v2.0 - Direct Python binding 
+  tools               :   ST.AI (legacy api) v2.2.0 
+  runtime lib         :   v10.2.0 
+  capabilities        :   IO_ONLY, PER_LAYER, PER_LAYER_WITH_DATA 
+  device.desc         :   AMD64, Intel64 Family 6 Model 186 Stepping 2, GenuineIntel, Windows 
+  ---------------------------------------------------------------------------------------------- 
+ NOTE: The duration and execution time per layer are just indications. They depend on the host machine's workload. 
+  ST.AI Profiling results v2.0 - "ai4i" 
+  ------------------------------------------------------------ 
+  nb sample(s)   :   1996 
+  duration       :   0.002 ms by sample (0.000/0.098/0.003) 
+  macc           :   3456 
+  ------------------------------------------------------------ 
+  Statistic per tensor 
+  ---------------------------------------------------------------------------------- 
+  tensor   #      type[shape]:size        min     max     mean      std  name 
+  ---------------------------------------------------------------------------------- 
+  I.0      1996   f32[1,1,1,8]:32      -3.734   6.839   -0.001    1.007  input_1 
+  O.0      1996   f32[1,1,1,5]:20       0.000   1.000    0.200    0.396  output_1 
+  ---------------------------------------------------------------------------------- 
+Saving validation data... 
+ output directory: C:\Users\matte\.stm32cubemx\ai4i_output 
+ creating C:\Users\matte\.stm32cubemx\ai4i_output\ai4i_val_io.npz 
+ m_outputs_1: (1996, 5)/float32, min/max=[0.000000, 1.000000], mean/std=[0.200000, 0.396119], nl_4 
+ c_outputs_1: (1996, 1, 1, 5)/float32, min/max=[0.000000, 1.000000], mean/std=[0.200000, 0.396119], nl_4 
+Computing the metrics... 
+ Accuracy report #1 for the generated HOST C-model 
+ ---------------------------------------------------------------------------------------------------- 
+ notes: - computed against the provided ground truth values 
+        - 1996 samples (5 items per sample) 
+  acc=96.04% rmse=0.113847658 mae=0.016050985 l2r=0.256560534 mean=-0.000000 std=0.113853 nse=0.919000 cos=0.967374 
+  Confusion matrix (axis=-1) - 5 classes (1996 samples) 
+  --------------------------------- 
+  C0      1868  44   11    6    5 
+  C1        7    2    .    .    . 
+  C2        3    .   18    .    . 
+  C3        2    .    .   14    . 
+  C4        1    .    .    .   15 
+ Accuracy report #1 for the reference model 
+ ---------------------------------------------------------------------------------------------------- 
+ notes: - computed against the provided ground truth values 
+        - 1996 samples (5 items per sample) 
+  acc=96.04% rmse=0.113847665 mae=0.016050985 l2r=0.256560564 mean=-0.000000 std=0.113853 nse=0.919000 cos=0.967374 
+  Confusion matrix (axis=-1) - 5 classes (1996 samples) 
+  --------------------------------- 
+  C0      1868  44   11    6    5 
+  C1        7    2    .    .    . 
+  C2        3    .   18    .    . 
+  C3        2    .    .   14    . 
+  C4        1    .    .    .   15 
+ Cross accuracy report #1 (reference vs C-model) 
+ ---------------------------------------------------------------------------------------------------- 
+ notes: - the output of the reference model is used as ground truth/reference value 
+        - 1996 samples (5 items per sample) 
+  acc=100.00% rmse=0.000000043 mae=0.000000005 l2r=0.000000096 mean=-0.000000 std=0.000000 nse=1.000000 cos=1.000000 
+  Confusion matrix (axis=-1) - 5 classes (1996 samples) 
+  --------------------------------- 
+  C0      1881   .    .    .    . 
+  C1        .   46    .    .    . 
+  C2        .    .   29    .    . 
+  C3        .    .    .   20    . 
+  C4        .    .    .    .   20 
+ Evaluation report (summary) 
+ --------------------------------------------------------------------------------------------------------------------------------------------------------- 
+ Output              acc       rmse          mae           l2r           mean        std        nse        cos        tensor 
+ --------------------------------------------------------------------------------------------------------------------------------------------------------- 
+ HOST c-model #1     96.04%    0.113847658   0.016050985   0.256560534   -0.000000   0.113853   0.919000   0.967374   'nl_4', 1996 x f32(1x5), m_id=[4] 
+ original model #1   96.04%    0.113847665   0.016050985   0.256560564   -0.000000   0.113853   0.919000   0.967374   'nl_4', 1996 x f32(1x5), m_id=[4] 
+ X-cross #1          100.00%   0.000000043   0.000000005   0.000000096   -0.000000   0.000000   1.000000   1.000000   'nl_4', 1996 x f32(1x5), m_id=[4] 
+ --------------------------------------------------------------------------------------------------------------------------------------------------------- 
+  acc  : Accuracy (class, axis=-1) 
+  rmse : Root Mean Squared Error 
+  mae  : Mean Absolute Error 
+  l2r  : L2 relative error 
+  mean : Mean error 
+  std  : Standard deviation error 
+  nse  : Nash-Sutcliffe efficiency criteria, bigger is better, best=1, range=(-inf, 1] 
+  cos  : COsine Similarity, bigger is better, best=1, range=(0, 1] 
+Creating txt report file C:\Users\matte\.stm32cubemx\ai4i_output\ai4i_validate_report.txt 
+elapsed time (validate): 19.633s 
+Validation ended

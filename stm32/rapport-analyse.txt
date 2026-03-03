@@ -1,0 +1,139 @@
+
+
+Analyzing model 
+C:/Users/matte/STM32Cube/Repository/Packs/STMicroelectronics/X-CUBE-AI/10.2.0/Utilities/windows/stedgeai.exe analyze --target stm32l4 --name ai4i -m C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/modele/modele_maintenance.tflite --compression none --verbosity 1 --workspace C:/Users/matte/AppData/Local/Temp/mxAI_workspace452067840809006089126789492306182 --output C:/Users/matte/.stm32cubemx/ai4i_output 
+ST Edge AI Core v2.2.0-20266 2adc00962 
+Creating c (debug) info json file C:\Users\matte\.stm32cubemx\ai4i_output\ai4i_c_info.json 
+  
+ Exec/report summary (analyze) 
+ ----------------------------------------------------------------------------------------------------------------------------- 
+ model file         :   C:\Users\matte\Documents\embedded_AI\Projet_Maintenance_Predictive\modele\modele_maintenance.tflite    
+ type               :   tflite                                                                                                 
+ c_name             :   ai4i                                                                                                   
+ compression        :   none                                                                                                   
+ options            :   allocate-inputs, allocate-outputs                                                                      
+ optimization       :   balanced                                                                                               
+ target/series      :   stm32l4                                                                                                
+ workspace dir      :   C:\Users\matte\AppData\Local\Temp\mxAI_workspace452067840809006089126789492306182                      
+ output dir         :   C:\Users\matte\.stm32cubemx\ai4i_output                                                                
+ model_fmt          :   float                                                                                                  
+ model_name         :   modele_maintenance                                                                                     
+ model_hash         :   0x22a3aca055ad4bab33a02af04a93fcbf                                                                     
+ params #           :   3,269 items (12.77 KiB)                                                                                
+ ----------------------------------------------------------------------------------------------------------------------------- 
+ input 1/1          :   'serving_default_ke..ensor_1470', f32(1x8), 32 Bytes, activations                                      
+ output 1/1         :   'nl_4', f32(1x5), 20 Bytes, activations                                                                
+ macc               :   3,456                                                                                                  
+ weights (ro)       :   13,076 B (12.77 KiB) (1 segment)                                                                       
+ activations (rw)   :   384 B (384 B) (1 segment) *                                                                            
+ ram (total)        :   384 B (384 B) = 384 + 0 + 0                                                                            
+ ----------------------------------------------------------------------------------------------------------------------------- 
+ (*) 'input'/'output' buffers are allocated in the activations buffer 
+Computing AI RT data/code size (target=stm32l4).. 
+ Model name - modele_maintenance 
+ ------ ----------------------------------- ------------- ------------- ------- -------------------------------- 
+ m_id   layer (original)                    oshape        param/size       macc                     connected to 
+ ------ ----------------------------------- ------------- ------------- ------- -------------------------------- 
+ 0      serving_default_ke..ensor_1470 ()   [b:1,c:8] 
+        sequential_14_1_de..6_1_MatMul ()   [b:64,c:8]    512/2,048 
+        sequential_14_1_de.._1_BiasAdd ()   [b:64]        64/256 
+        gemm_0 (FULLY_CONNECTED)            [b:1,c:64]                      576   serving_default_ke..ensor_1470 
+                                                                                  sequential_14_1_de..6_1_MatMul 
+                                                                                  sequential_14_1_de.._1_BiasAdd 
+        nl_0_nl (FULLY_CONNECTED)           [b:1,c:64]                       64                           gemm_0 
+ ------ ----------------------------------- ------------- ------------- ------- -------------------------------- 
+ 1      arith_constant5 ()                  [b:32,c:64]   2,048/8,192 
+        arith_constant1 ()                  [b:32]        32/128 
+        gemm_1 (FULLY_CONNECTED)            [b:1,c:32]                    2,080                          nl_0_nl 
+                                                                                                 arith_constant5 
+                                                                                                 arith_constant1 
+        nl_1_nl (FULLY_CONNECTED)           [b:1,c:32]                       32                           gemm_1 
+ ------ ----------------------------------- ------------- ------------- ------- -------------------------------- 
+ 2      arith_constant4 ()                  [b:16,c:32]   512/2,048 
+        arith_constant ()                   [b:16]        16/64 
+        gemm_2 (FULLY_CONNECTED)            [b:1,c:16]                      528                          nl_1_nl 
+                                                                                                 arith_constant4 
+                                                                                                  arith_constant 
+        nl_2_nl (FULLY_CONNECTED)           [b:1,c:16]                       16                           gemm_2 
+ ------ ----------------------------------- ------------- ------------- ------- -------------------------------- 
+ 3      arith_constant3 ()                  [b:5,c:16]    80/320 
+        arith_constant2 ()                  [b:5]         5/20 
+        gemm_3 (FULLY_CONNECTED)            [b:1,c:5]                        85                          nl_2_nl 
+                                                                                                 arith_constant3 
+                                                                                                 arith_constant2 
+ ------ ----------------------------------- ------------- ------------- ------- -------------------------------- 
+ 4      nl_4 (SOFTMAX)                      [b:1,c:5]                        75                           gemm_3 
+ ------ ----------------------------------- ------------- ------------- ------- -------------------------------- 
+ model: macc=3,456 weights=13,076 activations=-- io=-- 
+ Number of operations per c-layer 
+ ------- ------ ------------------------ ------- -------------- 
+ c_id    m_id   name (type)                  #op           type 
+ ------- ------ ------------------------ ------- -------------- 
+ 0       0      gemm_0 (Dense)               576   smul_f32_f32 
+ 1       0      nl_0_nl (Nonlinearity)        64     op_f32_f32 
+ 2       1      gemm_1 (Dense)             2,080   smul_f32_f32 
+ 3       1      nl_1_nl (Nonlinearity)        32     op_f32_f32 
+ 4       2      gemm_2 (Dense)               528   smul_f32_f32 
+ 5       2      nl_2_nl (Nonlinearity)        16     op_f32_f32 
+ 6       3      gemm_3 (Dense)                85   smul_f32_f32 
+ 7       4      nl_4 (Nonlinearity)           75     op_f32_f32 
+ ------- ------ ------------------------ ------- -------------- 
+ total                                     3,456 
+ Number of operation types 
+ ---------------- ------- ----------- 
+ operation type         #           % 
+ ---------------- ------- ----------- 
+ smul_f32_f32       3,269       94.6% 
+ op_f32_f32           187        5.4% 
+ Complexity report (model) 
+ ------ ----------------------------------- ------------------------- ------------------------- -------- 
+ m_id   name                                c_macc                    c_rom                     c_id 
+ ------ ----------------------------------- ------------------------- ------------------------- -------- 
+ 0      serving_default_keras_tensor_1470   |||||             18.5%   |||||             17.6%   [0, 1] 
+ 1      arith_constant5                     ||||||||||||||||  61.1%   ||||||||||||||||  63.6%   [2, 3] 
+ 2      arith_constant4                     ||||              15.7%   ||||              16.2%   [4, 5] 
+ 3      arith_constant3                     |                  2.5%   |                  2.6%   [6] 
+ 4      nl_4                                |                  2.2%   |                  0.0%   [7] 
+ ------ ----------------------------------- ------------------------- ------------------------- -------- 
+ macc=3,456 weights=13,076 act=384 ram_io=0 
+ Requested memory size by section - "stm32l4" target 
+ ------------------------------ ------- -------- ------- ----- 
+ module                            text   rodata    data   bss 
+ ------------------------------ ------- -------- ------- ----- 
+ NetworkRuntime1020_CM4_GCC.a     6,924        0       0     0 
+ ai4i.o                             610       64   2,236   160 
+ ai4i_data.o                         48       16      88     0 
+ lib (toolchain)*                   614       24       0     0 
+ ------------------------------ ------- -------- ------- ----- 
+ RT total**                       8,196      104   2,324   160 
+ ------------------------------ ------- -------- ------- ----- 
+ weights                              0   13,080       0     0 
+ activations                          0        0       0   384 
+ io                                   0        0       0     0 
+ ------------------------------ ------- -------- ------- ----- 
+ TOTAL                            8,196   13,184   2,324   544 
+ ------------------------------ ------- -------- ------- ----- 
+ *  toolchain objects (libm/libgcc*) 
+ ** RT AI runtime objects (kernels+infrastructure) 
+  Summary - "stm32l4" target 
+  --------------------------------------------------- 
+               FLASH (ro)      %*   RAM (rw)       % 
+  --------------------------------------------------- 
+  RT total         10,624   44.8%      2,484   86.6% 
+  --------------------------------------------------- 
+  TOTAL            23,704              2,868 
+  --------------------------------------------------- 
+  *  rt/total 
+Creating txt report file C:\Users\matte\.stm32cubemx\ai4i_output\ai4i_analyze_report.txt 
+elapsed time (analyze): 10.881s 
+Model file:      modele_maintenance.tflite 
+Total Flash:     23700 B (23.14 KiB) 
+    Weights:     13076 B (12.77 KiB) 
+    Library:     10624 B (10.38 KiB) 
+Total Ram:       2868 B (2.80 KiB) 
+    Activations: 384 B 
+    Library:     2484 B (2.43 KiB) 
+    Input:       32 B (included in Activations) 
+    Output:      20 B (included in Activations) 
+Done 
+Analyze complete on AI model
