@@ -45,8 +45,6 @@ I2C_HandleTypeDef hi2c1;
 
 SAI_HandleTypeDef hsai_BlockA1;
 
-SD_HandleTypeDef hsd1;
-
 SPI_HandleTypeDef hspi2;
 
 UART_HandleTypeDef huart2;
@@ -66,7 +64,6 @@ static void MX_GPIO_Init(void);
 static void MX_FMC_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SAI1_Init(void);
-static void MX_SDMMC1_SD_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
@@ -112,7 +109,6 @@ int main(void)
   MX_FMC_Init();
   MX_I2C1_Init();
   MX_SAI1_Init();
-  MX_SDMMC1_SD_Init();
   MX_SPI2_Init();
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
@@ -283,38 +279,6 @@ static void MX_SAI1_Init(void)
   /* USER CODE BEGIN SAI1_Init 2 */
 
   /* USER CODE END SAI1_Init 2 */
-
-}
-
-/**
-  * @brief SDMMC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SDMMC1_SD_Init(void)
-{
-
-  /* USER CODE BEGIN SDMMC1_Init 0 */
-
-  /* USER CODE END SDMMC1_Init 0 */
-
-  /* USER CODE BEGIN SDMMC1_Init 1 */
-
-  /* USER CODE END SDMMC1_Init 1 */
-  hsd1.Instance = SDMMC1;
-  hsd1.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
-  hsd1.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
-  hsd1.Init.BusWide = SDMMC_BUS_WIDE_4B;
-  hsd1.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
-  hsd1.Init.ClockDiv = 0;
-  hsd1.Init.Transceiver = SDMMC_TRANSCEIVER_DISABLE;
-  if (HAL_SD_Init(&hsd1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SDMMC1_Init 2 */
-
-  /* USER CODE END SDMMC1_Init 2 */
 
 }
 
@@ -648,6 +612,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF5_OCTOSPIM_P2;
   HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : uSD_CMD_Pin */
+  GPIO_InitStruct.Pin = uSD_CMD_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF12_SDMMC1;
+  HAL_GPIO_Init(uSD_CMD_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : uSD_D2_Pin uSD_D3_Pin uSD_CLK_Pin uSD_D0_Pin
+                           uSD_D1_Pin */
+  GPIO_InitStruct.Pin = uSD_D2_Pin|uSD_D3_Pin|uSD_CLK_Pin|uSD_D0_Pin
+                          |uSD_D1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF12_SDMMC1;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : JOY_SEL_Pin */
   GPIO_InitStruct.Pin = JOY_SEL_Pin;

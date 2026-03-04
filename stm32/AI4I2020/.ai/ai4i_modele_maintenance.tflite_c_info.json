@@ -470,44 +470,44 @@
   ],
   "environment": {
     "generated_model": {
-      "generated_time": "2026-03-03T21:05:56+0100",
+      "generated_time": "2026-03-04T20:50:07+0100",
       "model_files": [
         {
           "name": "ai4i_data_params.h",
-          "signature": "0x86f6843304a31e93ebbe438edda2066a"
+          "signature": "0x897c23a787915ee969b9d6cc7518e5e0"
         },
         {
           "name": "ai4i_data_params.c",
-          "signature": "0xaea9bb979615f58b33d28109f458ba57"
+          "signature": "0x95c5d56034838b1909c3430765dcc751"
         },
         {
           "name": "ai4i_data.h",
-          "signature": "0x0a99913d2bbf60dd340e44a45d1bceed"
+          "signature": "0xa4abba68f652550bce67f5b8f5171fc2"
         },
         {
           "name": "ai4i_data.c",
-          "signature": "0xad7383da8c87f4a7d585cecb0c14f70d"
+          "signature": "0x2408b31e2959a20002098fc72731b14c"
         },
         {
           "name": "ai4i_config.h",
-          "signature": "0xd4e918472c81b054b9a3c5cd814e5be2"
+          "signature": "0xf4c8d24f7e28cb037f54aaa74760bb28"
         },
         {
           "name": "ai4i.h",
-          "signature": "0x2f62f20d9898ef0e09376adcfa2b2f55"
+          "signature": "0x85246562d364bbb56083f02dd8f39fc2"
         },
         {
           "name": "ai4i.c",
-          "signature": "0xca361b423cf5a8f07767113900a277c9"
+          "signature": "0x10137dae260a702d50a51973c9db7555"
         }
       ],
       "name": "ai4i"
     },
-    "network_signature": "0x92430a9c6e4725ff",
+    "network_signature": "0x8b1d5b2c84f7f1fc",
     "test_name": "",
     "tools": [
       {
-        "arguments": "generate --target stm32l4 --name ai4i -m C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/modele/modele_maintenance.tflite --compression none --verbosity 1 --workspace C:/Users/matte/AppData/Local/Temp/mxAI_workspace456196229805008886579987897091670 --output C:/Users/matte/.stm32cubemx/ai4i_output",
+        "arguments": "generate --target stm32l4 --name ai4i -m C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/modele/modele_maintenance.tflite --compression none --verbosity 1 --workspace C:/Users/matte/AppData/Local/Temp/mxAI_workspace68079540603003351335940358346367 --output C:/Users/matte/.stm32cubemx/ai4i_output",
         "environment": [
           "STATS_TYPE=X-CUBE-AI"
         ],

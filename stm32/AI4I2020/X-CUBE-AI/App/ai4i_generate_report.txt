@@ -1,6 +1,6 @@
 ST Edge AI Core v2.2.0-20266 2adc00962
-Created date          : 2026-03-03 21:05:57
-Parameters            : generate --target stm32l4 --name ai4i -m C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/modele/modele_maintenance.tflite --compression none --verbosity 1 --workspace C:/Users/matte/AppData/Local/Temp/mxAI_workspace456196229805008886579987897091670 --output C:/Users/matte/.stm32cubemx/ai4i_output
+Created date          : 2026-03-04 20:50:08
+Parameters            : generate --target stm32l4 --name ai4i -m C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/modele/modele_maintenance.tflite --compression none --verbosity 1 --workspace C:/Users/matte/AppData/Local/Temp/mxAI_workspace68079540603003351335940358346367 --output C:/Users/matte/.stm32cubemx/ai4i_output
 
 Exec/report summary (generate)
 -----------------------------------------------------------------------------------------------------------------------------
@@ -11,7 +11,7 @@ compression        :   none
 options            :   allocate-inputs, allocate-outputs                                                                     
 optimization       :   balanced                                                                                              
 target/series      :   stm32l4                                                                                               
-workspace dir      :   C:\Users\matte\AppData\Local\Temp\mxAI_workspace456196229805008886579987897091670                     
+workspace dir      :   C:\Users\matte\AppData\Local\Temp\mxAI_workspace68079540603003351335940358346367                      
 output dir         :   C:\Users\matte\.stm32cubemx\ai4i_output                                                               
 model_fmt          :   float                                                                                                 
 model_name         :   modele_maintenance                                                                                    
