@@ -58,6 +58,15 @@
 #include "ai4i_data.h"
 
 /* USER CODE BEGIN includes */
+ extern UART_HandleTypeDef huart2;
+ #define INPUT_SIZE 8// 8 float32 inputs
+ #define INPUT_BYTES (INPUT_SIZE * 4)// 8 * 4 = 32 bytes
+ #define OUTPUT_SIZE 5 // 5 classes
+ #define UART_TIMEOUT 5000
+ #define SYNC_BYTE 0xAB
+ #define ACK_BYTE 0xCD
+
+ void uart_sync(void);
 /* USER CODE END includes */
 
 /* IO buffers ----------------------------------------------------------------*/
@@ -169,28 +178,58 @@ static int ai_run(void)
 }
 
 /* USER CODE BEGIN 2 */
-int acquire_and_process_data(ai_i8* data[])
+// waits for the sync byte from PC then sends back an ack
+void uart_sync(void)
 {
-  /* fill the inputs of the c-model
-  for (int idx=0; idx < AI_AI4I_IN_NUM; idx++ )
-  {
-      data[idx] = ....
-  }
+	uint8_t rx = 0;
+    uint8_t ack = ACK_BYTE;
 
-  */
-  return 0;
+    while (rx != SYNC_BYTE)
+    {
+    	HAL_UART_Receive(&huart2, &rx, 1, HAL_MAX_DELAY);
+    }
+
+    HAL_UART_Transmit(&huart2, &ack, 1, UART_TIMEOUT);
 }
 
+// receives 8 float32 (32 bytes) from PC into the network input buffer
+int acquire_and_process_data(ai_i8* data[])
+{
+	HAL_StatusTypeDef status = HAL_UART_Receive(
+			&huart2,
+			(uint8_t *)data[0],
+			INPUT_BYTES,
+			UART_TIMEOUT
+			);
+
+	if (status != HAL_OK)
+		return -1;
+
+	return 0;
+}
+
+// reads 5 float outputs, converts to uint8 [0-255] and sends to PC
 int post_process(ai_i8* data[])
 {
-  /* process the predictions
-  for (int idx=0; idx < AI_AI4I_OUT_NUM; idx++ )
-  {
-      data[idx] = ....
-  }
+	ai_float *output = (ai_float *)data[0];
+	uint8_t results[OUTPUT_SIZE];
 
-  */
-  return 0;
+	for (int i = 0; i < OUTPUT_SIZE; i++)
+	{
+		results[i] = (uint8_t)(output[i] * 255.0f);
+	}
+
+	HAL_StatusTypeDef status = HAL_UART_Transmit(
+			&huart2,
+			results,
+			OUTPUT_SIZE,
+			UART_TIMEOUT
+			);
+
+	if (status != HAL_OK)
+		return -1;
+
+	return 0;
 }
 /* USER CODE END 2 */
 
@@ -210,7 +249,8 @@ void MX_X_CUBE_AI_Process(void)
     /* USER CODE BEGIN 6 */
   int res = -1;
 
-  printf("TEMPLATE - run - main loop\r\n");
+  // sync with the python script before starting inference
+  uart_sync();
 
   if (ai4i) {
 
