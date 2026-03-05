@@ -1,0 +1,13 @@
+../X-CUBE-AI/App/mnist.c:376:9:mnist_configure_activations	2
+../X-CUBE-AI/App/mnist.c:411:9:mnist_configure_weights	2
+../X-CUBE-AI/App/mnist.c:450:9:ai_mnist_get_info	4
+../X-CUBE-AI/App/mnist.c:497:9:ai_mnist_get_report	4
+../X-CUBE-AI/App/mnist.c:544:10:ai_mnist_get_error	1
+../X-CUBE-AI/App/mnist.c:551:10:ai_mnist_create	1
+../X-CUBE-AI/App/mnist.c:562:10:ai_mnist_create_and_init	8
+../X-CUBE-AI/App/mnist.c:597:12:ai_mnist_inputs_get	2
+../X-CUBE-AI/App/mnist.c:608:12:ai_mnist_outputs_get	2
+../X-CUBE-AI/App/mnist.c:619:11:ai_mnist_destroy	1
+../X-CUBE-AI/App/mnist.c:626:9:ai_mnist_init	2
+../X-CUBE-AI/App/mnist.c:643:8:ai_mnist_run	1
+../X-CUBE-AI/App/mnist.c:651:8:ai_mnist_forward	1
