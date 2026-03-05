@@ -654,8 +654,6 @@ Le code BSP d'initialisation hardware (clock, LCD, touch, MFX, interruptions) es
 
 ![Vue globale de la carte avec prédiction](images/carte_globale_prediction.jpeg)
 
-![Zoom sur l'écran avec prédiction](images/zoom_ecran_prediction.jpeg)
-
 Ça marche... plus ou moins. Sur la photo ci-dessus, on voit un **3** reconnu avec **99% de confiance** ça fait rêver dit comme ça, mais il faut être honnête : c'est loin d'être comme ça à chaque fois. Pour obtenir ce résultat, j'ai dû m'appliquer à imiter la forme des chiffres tels qu'ils apparaissent dans le dataset MNIST, c'est-à-dire des traits arrondis, bien centrés, avec une certaine épaisseur. Ce n'est pas du tout comme ça que j'écris mes 3 naturellement.
 
 Quand on dessine un chiffre bien gros, bien centré, avec des traits propres, le modèle le reconnaît assez souvent correctement. Les chiffres "faciles" sont le **0** (forme très distinctive), le **1** (un trait vertical) et le **7**. Les plus difficiles sont le **5** et le **8**, probablement parce qu'ils demandent des courbes précises que l'écran tactile ne capture pas très bien.
