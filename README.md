@@ -222,6 +222,229 @@ Le compromis, c'est que 66 machines fonctionnelles sont maintenant classées à 
 
 ---
 
+## 7. Export et conversion du modèle
+
+Le modèle est exporté au format TFLite (`.tflite`) plutôt qu'en `.h5`. Ce n'était pas mon premier choix : initialement j'exportais en .h5, qui est le format natif de Keras. Mais j'ai découvert que Keras 3 ajoute un attribut `quantization_config` dans chaque couche Dense lors de la sauvegarde en .h5, et X-CUBE-AI (v10) ne sait pas le lire. L'import dans CubeMX plante avec une erreur de désérialisation pas très explicite. J'ai perdu un bon moment là-dessus avant de comprendre que le problème venait du format et pas du modèle lui-même (j'en reparle dans la section [Problèmes rencontrés](#10-problèmes-rencontrés-et-bugs)).
+
+Le format TFLite contourne ce problème car il a son propre format de sérialisation, indépendant de Keras.
+
+Fichiers exportés :
+- `modele/modele_maintenance.tflite` : le modèle converti (15.6 KB)
+- `modele/x_test.npy` : données de test (1996 échantillons, 8 features normalisées)
+- `modele/y_test.npy` : labels one-hot (1996 échantillons, 5 classes)
+
+---
+
+## 8. Déploiement sur STM32L4R9
+
+### 8.1 Configuration X-CUBE-AI
+
+Le modèle TFLite a été importé dans STM32CubeMX via le middleware X-CUBE-AI. La configuration :
+
+- **Nom du réseau :** `ai4i` (ce nom est utilisé partout dans le code C généré : `ai_ai4i_create_and_init`, `ai_ai4i_run`, etc.)
+- **Compression :** none — le modèle fait 12 Ko de poids, il n'y a aucun intérêt à compresser
+- **Options :** `allocate-inputs` et `allocate-outputs` activées — les buffers d'entrée/sortie sont alloués dans le buffer d'activations au lieu d'être déclarés séparément, ce qui économise un peu de RAM
+
+![Configuration X-CUBE-AI dans CubeMX](images/config-cubeai.png)
+
+### 8.2 Analyse du modèle
+
+Avant de générer le code, X-CUBE-AI analyse le modèle pour vérifier qu'il tiendra dans les contraintes mémoire de la cible. Résultats complets dans `stm32/rapport-analyse.txt`.
+
+| Métrique | Valeur |
+|----------|--------|
+| Paramètres | 3 269 (12.77 KiB) |
+| MACC (opérations multiply-accumulate) | 3 456 |
+| Poids (FLASH, lecture seule) | 13 076 B (12.77 KiB) |
+| Activations (RAM, lecture-écriture) | 384 B |
+| Entrée | float32(1×8), 32 B |
+| Sortie | float32(1×5), 20 B |
+| **FLASH totale (modèle + runtime)** | **23 700 B (23.14 KiB)** |
+| **RAM totale** | **2 868 B (2.80 KiB)** |
+
+#### Graphe du modèle
+
+![Graphe du modèle dans X-CUBE-AI](images/graph-ai4i-model.png)
+
+Ce graphe est généré par X-CUBE-AI et représente le pipeline d'inférence tel qu'il sera exécuté sur la STM32. L'entrée (`serving_default_keras_tensor_1470_output_array`) est un vecteur de 8 float32 — nos 8 features normalisées.
+
+Ce qu'on voit, c'est que chaque couche Dense qu'on a définie dans Keras est décomposée en deux opérations distinctes par le runtime : un bloc **Dense** (la multiplication matricielle + biais) suivi d'un bloc **Non Linearity** (la fonction d'activation). Dans Keras on écrit `Dense(64, activation='relu')` et ça a l'air d'être une seule chose, mais côté exécution C c'est bien deux étapes séparées. Les trois premières non-linéarités sont des ReLU, la dernière (`nl_4`) est le softmax qui produit les probabilités de sortie.
+
+Pour chaque couche Dense, le graphe affiche les dimensions des poids : la matrice (sortie × entrée) et le vecteur de biais. La première couche a une matrice 64×8 = 512 poids + 64 biais. La deuxième (32×64 = 2 048 poids + 32 biais) est de loin la plus lourde du réseau. Les couches suivantes sont de plus en plus petites, ce qui reflète la stratégie de compression progressive vers les 5 classes de sortie : 8 → 64 → 32 → 16 → 5. On élargit d'abord la représentation pour capturer des combinaisons de features, puis on la réduit progressivement jusqu'à l'espace de classification.
+
+La sortie finale (`nl_4_output_array`) est un vecteur de 5 valeurs : les probabilités pour Functional, TWF, HDF, PWF, OSF.
+
+#### Memory layout
+
+![Layout mémoire du modèle](images/memory-layout-ai4i-model.png)
+
+Ce diagramme est probablement le plus intéressant des deux, mais il est aussi moins intuitif à lire. Il montre comment la RAM est utilisée à chaque étape de l'inférence.
+
+L'axe horizontal représente les opérations exécutées séquentiellement, de gauche à droite : `gemm_0`, `nl_0_nl`, `gemm_1`, `nl_1_nl`, `gemm_2`, `nl_2_nl`, `gemm_3`, `nl_4`. Les `gemm` correspondent aux couches Dense (multiplication matricielle) et les `nl` aux fonctions d'activation. L'axe vertical représente les adresses mémoire en octets, relatives au début du pool d'activations.
+
+Les zones cyan représentent les **activations**, c'est-à-dire les buffers temporaires qui contiennent les tenseurs intermédiaires (les vecteurs de sortie de chaque couche). On voit que les premières étapes (`gemm_0`, `gemm_1`) ont les colonnes les plus hautes : c'est logique, on y manipule les vecteurs les plus larges (64 float32 = 256 octets). À partir de `gemm_2` la hauteur diminue parce que les vecteurs passent à 32 puis 16 valeurs. À `nl_4` (la dernière activation, le softmax), l'empreinte est minimale puisqu'on ne travaille plus que sur 5 valeurs.
+
+La bande `weights_array` en haut du diagramme représente les poids du réseau. En réalité ils sont stockés en Flash (lecture seule, 13 Ko) et pas en RAM, mais le diagramme montre leur emplacement logique dans l'espace d'adressage du runtime. On voit qu'ils sont accédés par chaque opération `gemm` mais pas par les `nl` — ce qui est normal puisque les fonctions d'activation n'ont pas de paramètres appris, elles appliquent juste une fonction mathématique sur les valeurs en place.
+
+Le point le plus important de ce diagramme, c'est le mécanisme d'**overlay mémoire** (visible via le `heap_overlay_pool`). X-CUBE-AI ne va pas allouer un buffer séparé pour chaque tenseur intermédiaire — ça demanderait 64+32+16+5 = 117 floats = 468 octets rien que pour les activations. À la place, il réutilise les mêmes zones de RAM pour des tenseurs qui n'ont pas besoin de coexister en même temps. Quand `gemm_1` s'exécute, le buffer de sortie de `gemm_0` a déjà été consommé par `nl_0_nl` et peut être écrasé. C'est grâce à ce mécanisme que le budget total d'activations n'est que de **384 octets** alors que la somme brute de tous les tenseurs intermédiaires serait bien supérieure. Concrètement, c'est une allocation/désallocation dynamique au sein d'un buffer statique de taille fixe, ce qui est typique de l'embarqué où on veut éviter le `malloc` à tout prix.
+
+#### Observations générales
+
+La STM32L4R9 dispose de 2 Mo de Flash et 640 Ko de RAM. Mon modèle occupe 23 Ko en Flash et 2.8 Ko en RAM, soit environ 1% des ressources disponibles. C'est rassurant, mais ça montre aussi qu'on aurait largement pu se permettre un réseau plus gros si les performances l'avaient justifié.
+
+Le nombre de MACC (3 456) est très faible. Pour donner un ordre de grandeur, un petit réseau de classification d'images c'est plusieurs millions de MACC. Ici l'inférence prend environ 0.002 ms sur le host en validation desktop, et c'est quasi-instantané sur la carte. Normal : on ne fait que 4 multiplications matricielles sur 8 features.
+
+En regardant la répartition par couche (confirmée visuellement par le memory layout), la couche Dense 64→32 concentre à elle seule 61.1% des opérations et 63.6% de la mémoire poids. C'est attendu : c'est la couche avec le plus de connexions (64 × 32 = 2 048 poids). Si on devait optimiser la taille ou la vitesse du modèle, c'est cette couche qu'il faudrait cibler en premier.
+
+J'ai laissé la compression à "none" car le modèle fait déjà 12 Ko de poids. La quantification int8 diviserait la taille par ~4, mais vu la marge mémoire, ça n'apporterait rien de concret et pourrait dégrader la précision des sorties softmax.
+
+### 8.3 Validation sur desktop
+
+Avant de flasher le modèle sur la carte, X-CUBE-AI permet de le valider "on desktop" : le code C généré est compilé et exécuté directement sur le PC avec les données de test. Ça permet de vérifier que la conversion TFLite → C n'a pas cassé quelque chose. Résultats dans `stm32/rapport-validation-desktop.txt`.
+
+| Modèle | Accuracy | RMSE |
+|--------|----------|------|
+| Modèle TFLite original | 96.04% | 0.1138 |
+| Modèle C généré (HOST) | 96.04% | 0.1138 |
+| **Cross-accuracy (ref vs C)** | **100.00%** | 0.000000043 |
+
+La cross-accuracy de 100% est le point important ici. Ça veut dire que le modèle C produit exactement les mêmes sorties que le modèle TFLite, à la précision flottante près (RMSE de 4.3×10⁻⁸, c'est du bruit numérique). Ce résultat est utile parce que si le modèle se comporte bizarrement une fois sur la carte, on sait que le problème ne vient pas de la conversion mais forcément de la communication UART ou du preprocessing des données.
+
+La matrice de confusion de la validation desktop confirme la même répartition que Python :
+- C0 (Functional) : 1868 corrects, 66 faux positifs de panne répartis sur les autres classes
+- C1 (TWF) : seulement 2 détectés sur 9 — c'est la faiblesse connue du modèle
+- C2 (HDF), C3 (PWF), C4 (OSF) : bien détectés globalement
+
+### 8.4 Code embarqué : ce que j'ai écrit et pourquoi
+
+X-CUBE-AI génère un squelette dans `app_x-cube-ai.c` avec des fonctions vides à remplir. Toute la logique que j'ai ajoutée se trouve dans les zones `USER CODE`. La carte n'a pas de capteurs industriels branchés, donc on utilise l'UART (port série via le câble ST-Link) pour envoyer les données depuis le PC et récupérer les prédictions.
+
+Le protocole d'échange entre le PC et la carte est illustré ci-dessous :
+
+![Protocole de communication UART](images/protocole_uart.png)
+
+En résumé : le PC envoie `0xAB`, la carte répond `0xCD` (synchronisation), puis on boucle — le PC envoie 32 octets (8 float32), la carte fait l'inférence et renvoie 5 octets (les probabilités en uint8). Le code ci-dessous détaille chaque étape.
+
+#### Constantes et configuration
+
+```c
+extern UART_HandleTypeDef huart2;
+#define INPUT_SIZE 8       // 8 float32 inputs
+#define INPUT_BYTES (INPUT_SIZE * 4)  // 8 × 4 = 32 octets
+#define OUTPUT_SIZE 5      // 5 classes en sortie
+#define UART_TIMEOUT 5000
+#define SYNC_BYTE 0xAB
+#define ACK_BYTE 0xCD
+```
+
+`huart2` est déclaré en `extern` parce qu'il est défini dans `main.c` par le code généré par CubeMX. C'est l'UART2 qui correspond au Virtual COM Port du ST-Link — c'est par là que transitent toutes les données.
+
+Le timeout de 5000 ms est volontairement large. Au début j'avais mis 1000 ms, mais il arrivait que le script Python soit un peu lent à envoyer les données (surtout au premier échantillon après la synchro), et la carte partait en timeout. 5 secondes c'est confortable sans être bloquant.
+
+#### Synchronisation UART
+
+```c
+void uart_sync(void)
+{
+    uint8_t rx = 0;
+    uint8_t ack = ACK_BYTE;
+    while (rx != SYNC_BYTE)
+    {
+        HAL_UART_Receive(&huart2, &rx, 1, HAL_MAX_DELAY);
+    }
+    HAL_UART_Transmit(&huart2, &ack, 1, UART_TIMEOUT);
+}
+```
+
+Sans cette étape, la carte commencerait à lire des octets dès le démarrage sans savoir si le script Python tourne, et tout serait désynchronisé. J'ai choisi `HAL_MAX_DELAY` (attente infinie) plutôt qu'un timeout parce que tant que le PC n'a pas lancé le script, la carte n'a rien d'autre à faire. C'est basique, mais ça marche.
+
+#### Réception des données d'entrée
+
+```c
+int acquire_and_process_data(ai_i8* data[])
+{
+    HAL_StatusTypeDef status = HAL_UART_Receive(
+        &huart2,
+        (uint8_t *)data[0],
+        INPUT_BYTES,
+        UART_TIMEOUT
+    );
+    if (status != HAL_OK)
+        return -1;
+    return 0;
+}
+```
+
+Un point important ici : on écrit directement dans `data[0]`, qui est le pointeur vers le buffer d'entrée du réseau de neurones. On n'utilise pas de buffer intermédiaire. C'est possible parce que les données arrivent déjà au bon format (8 float32 normalisés, envoyés en little-endian par Python, ce qui est aussi l'endianness de l'ARM Cortex-M4).
+
+Ce `data[0]` pointe soit vers un buffer statique, soit vers une zone dans le buffer d'activations (si `allocate-inputs` est activé). Dans notre cas c'est le buffer d'activations, ce qui veut dire que ce pointeur n'est valide qu'après l'appel à `ai_boostrap()`. Si on essaie d'écrire dedans avant, on écrit à l'adresse NULL. C'est un piège que j'ai découvert de manière un peu douloureuse (le firmware crashait silencieusement au premier échantillon reçu).
+
+#### Envoi des résultats
+
+```c
+int post_process(ai_i8* data[])
+{
+    ai_float *output = (ai_float *)data[0];
+    uint8_t results[OUTPUT_SIZE];
+
+    for (int i = 0; i < OUTPUT_SIZE; i++)
+    {
+        results[i] = (uint8_t)(output[i] * 255.0f);
+    }
+
+    HAL_StatusTypeDef status = HAL_UART_Transmit(
+        &huart2,
+        results,
+        OUTPUT_SIZE,
+        UART_TIMEOUT
+    );
+    if (status != HAL_OK)
+        return -1;
+    return 0;
+}
+```
+
+Les sorties du réseau sont 5 float32 (les probabilités softmax). Je les convertis en uint8 en multipliant par 255 avant de les envoyer. On passe de 20 octets à 5 octets par inférence. Pour notre petit projet la différence n'est pas énorme, mais c'est un pattern qu'on retrouve souvent en embarqué quand on veut limiter le volume de données sur le bus série.
+
+La résolution de la conversion est de 1/255 ≈ 0.4%. En pratique, ça veut dire que deux classes séparées par moins de 0.4% de probabilité pourraient être inversées par l'arrondi. Mais pour de la classification, on prend l'argmax (la classe avec la plus grande probabilité), et les probabilités du softmax sont généralement assez tranchées. Sur les 1996 tests, cette perte de précision n'a affecté aucune prédiction.
+
+#### Boucle principale
+
+```c
+void MX_X_CUBE_AI_Process(void)
+{
+    int res = -1;
+    uart_sync();
+
+    if (ai4i) {
+        do {
+            res = acquire_and_process_data(data_ins);
+            if (res == 0)
+                res = ai_run();
+            if (res == 0)
+                res = post_process(data_outs);
+        } while (res == 0);
+    }
+}
+```
+
+La boucle est volontairement linéaire : réception → inférence → envoi, en série. Pas de DMA, pas d'interruptions. C'est suffisant ici parce que le temps d'inférence est négligeable (quelques microsecondes) et que le bottleneck est de toute façon le débit UART à 115200 baud. Si une des étapes échoue (timeout UART, erreur réseau), `res` passe à -1 et la boucle s'arrête. Dans un vrai système industriel il faudrait gérer les erreurs de façon plus fine (retry, log, watchdog), mais pour du test c'est suffisant.
+
+Le `if (ai4i)` vérifie que le réseau a été correctement initialisé par `ai_boostrap()`. Si `ai_ai4i_create_and_init` avait échoué (modèle corrompu, pas assez de RAM), `ai4i` serait `AI_HANDLE_NULL` et on n'entrerait pas dans la boucle.
+
+### 8.5 Côté PC : le script de communication
+
+Le script `scripts/communication.py` fait le miroir de ce qui se passe côté carte :
+
+1. Il ouvre le port série (`COM3`, 115200 baud)
+2. Il attend 2 secondes pour que la connexion s'établisse (sans ce délai, les premiers octets sont parfois perdus)
+3. Il envoie `0xAB` et attend `0xCD`
+4. Il boucle sur les 1996 échantillons de test : envoi de 8 float32, réception de 5 uint8, comparaison de l'argmax avec le label attendu
+
+Le script affiche l'accuracy tous les 200 échantillons pour suivre la progression. À la fin, il donne le résultat global.
+
+---
+
 ## Auteur
 
 Matteo Quintaneiro | Mines Saint-Étienne, 2026
