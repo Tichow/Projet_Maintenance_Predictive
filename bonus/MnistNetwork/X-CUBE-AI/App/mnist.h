@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    mnist.h
   * @author  AST Embedded Analytics Research Platform
-  * @date    2026-02-23T11:43:52+0100
+  * @date    2026-03-06T00:18:09+0100
   * @brief   AI Tool Automatic Code Generator for Embedded NN computing
   ******************************************************************************
   * @attention
@@ -69,7 +69,7 @@ AI_DEPRECATED
 #define AI_MNIST_OUT_1_SIZE_BYTES  (40)
 
 /******************************************************************************/
-#define AI_MNIST_N_NODES (5)
+#define AI_MNIST_N_NODES (6)
 
 
 AI_API_DECLARE_BEGIN

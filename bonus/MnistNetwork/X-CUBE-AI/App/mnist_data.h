@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    mnist_data.h
   * @author  AST Embedded Analytics Research Platform
-  * @date    2026-02-23T11:43:52+0100
+  * @date    2026-03-06T00:18:09+0100
   * @brief   AI Tool Automatic Code Generator for Embedded NN computing
   ******************************************************************************
   * Copyright (c) 2026 STMicroelectronics.
@@ -32,7 +32,7 @@ AI_DEPRECATED
 AI_API_DECLARE_BEGIN
 
 
-extern const ai_u64 s_mnist_weights_array_u64[3239];
+extern const ai_u64 s_mnist_weights_array_u64[13349];
 
 
 
