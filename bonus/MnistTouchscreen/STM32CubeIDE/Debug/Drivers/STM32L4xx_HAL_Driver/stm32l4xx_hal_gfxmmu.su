@@ -1,0 +1,12 @@
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:168:19:HAL_GFXMMU_Init	24	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:237:19:HAL_GFXMMU_DeInit	24	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:278:13:HAL_GFXMMU_MspInit	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:293:13:HAL_GFXMMU_MspDeInit	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:476:19:HAL_GFXMMU_ConfigLut	48	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:528:19:HAL_GFXMMU_DisableLutLines	40	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:573:19:HAL_GFXMMU_ConfigLutLine	32	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:624:19:HAL_GFXMMU_ModifyBuffers	24	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:657:6:HAL_GFXMMU_IRQHandler	32	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:688:13:HAL_GFXMMU_ErrorCallback	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:721:25:HAL_GFXMMU_GetState	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gfxmmu.c:732:10:HAL_GFXMMU_GetError	24	static,ignoring_inline_asm

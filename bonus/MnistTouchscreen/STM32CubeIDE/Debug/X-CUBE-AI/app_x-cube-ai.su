@@ -1,0 +1,7 @@
+C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/bonus/MnistTouchscreen/X-CUBE-AI/App/app_x-cube-ai.c:101:13:ai_log_err	16	static
+C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/bonus/MnistTouchscreen/X-CUBE-AI/App/app_x-cube-ai.c:114:12:ai_boostrap	32	static
+C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/bonus/MnistTouchscreen/X-CUBE-AI/App/app_x-cube-ai.c:157:5:ai_run	16	static
+C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/bonus/MnistTouchscreen/X-CUBE-AI/App/app_x-cube-ai.c:172:5:acquire_and_process_data	16	static
+C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/bonus/MnistTouchscreen/X-CUBE-AI/App/app_x-cube-ai.c:184:5:post_process	16	static
+C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/bonus/MnistTouchscreen/X-CUBE-AI/App/app_x-cube-ai.c:199:6:MX_X_CUBE_AI_Init	8	static
+C:/Users/matte/Documents/embedded_AI/Projet_Maintenance_Predictive/bonus/MnistTouchscreen/X-CUBE-AI/App/app_x-cube-ai.c:208:6:MX_X_CUBE_AI_Process	16	static

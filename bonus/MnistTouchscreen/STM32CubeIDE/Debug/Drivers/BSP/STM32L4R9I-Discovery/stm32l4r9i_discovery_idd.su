@@ -1,0 +1,17 @@
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:56:9:BSP_IDD_Init	80	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:121:6:BSP_IDD_DeInit	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:133:6:BSP_IDD_Reset	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:145:6:BSP_IDD_LowPower	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:157:6:BSP_IDD_StartMeasure	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:175:6:BSP_IDD_Config	48	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:188:6:BSP_IDD_GetValue	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:204:6:BSP_IDD_EnableIT	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:216:6:BSP_IDD_ClearIT	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:228:9:BSP_IDD_GetITStatus	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:244:6:BSP_IDD_DisableIT	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:256:9:BSP_IDD_ErrorGetCode	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:287:6:BSP_IDD_ErrorEnableIT	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:299:6:BSP_IDD_ErrorClearIT	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:311:9:BSP_IDD_ErrorGetITStatus	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:327:6:BSP_IDD_ErrorDisableIT	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_idd.c:339:6:BSP_IDD_WakeUp	8	static

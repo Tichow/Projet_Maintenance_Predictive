@@ -1,0 +1,8 @@
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_io.c:96:9:BSP_IO_Init	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_io.c:145:9:BSP_IO_DeInit	4	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_io.c:157:10:BSP_IO_ITGetStatus	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_io.c:169:6:BSP_IO_ITClear	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_io.c:189:9:BSP_IO_ConfigPin	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_io.c:204:6:BSP_IO_WritePin	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_io.c:216:10:BSP_IO_ReadPin	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_io.c:227:6:BSP_IO_TogglePin	16	static

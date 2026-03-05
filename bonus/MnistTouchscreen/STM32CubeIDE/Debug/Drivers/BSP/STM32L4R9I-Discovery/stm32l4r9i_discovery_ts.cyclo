@@ -1,0 +1,10 @@
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:86:9:BSP_TS_Init	3
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:122:9:BSP_TS_DeInit	1
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:134:9:BSP_TS_GetState	8
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:219:9:BSP_TS_GestureConfig	2
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:236:9:BSP_TS_Get_GestureId	7
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:279:9:BSP_TS_ResetTouchData	3
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:308:9:BSP_TS_ITConfig	1
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:325:9:BSP_TS_ITDisable	1
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:339:6:BSP_TS_ITClear	1
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_ts.c:348:9:BSP_TS_ITGetStatus	1

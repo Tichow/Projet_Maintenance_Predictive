@@ -1,0 +1,4 @@
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/Components/ov9655/ov9655.c:556:6:ov9655_Init	24	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/Components/ov9655/ov9655.c:617:6:ov9655_Config	48	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/Components/ov9655/ov9655.c:666:10:ov9655_ReadID	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/Components/ov9655/ov9655.c:684:17:ov9655_ConvertValue	24	static

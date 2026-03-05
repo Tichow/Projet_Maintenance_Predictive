@@ -1,0 +1,10 @@
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:95:9:BSP_PSRAM_Init	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:158:9:BSP_PSRAM_DeInit	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:196:9:BSP_PSRAM_ReadData	24	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:215:9:BSP_PSRAM_ReadData_DMA	24	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:234:9:BSP_PSRAM_WriteData	24	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:253:9:BSP_PSRAM_WriteData_DMA	24	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:271:13:BSP_PSRAM_MspInit	72	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:397:13:BSP_PSRAM_MspDeInit	16	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:433:13:PSRAM_PowerOn	8	static
+C:/Users/matte/STM32Cube/Repository/STM32Cube_FW_L4_V1.18.2/Drivers/BSP/STM32L4R9I-Discovery/stm32l4r9i_discovery_psram.c:485:13:PSRAM_PowerOff	8	static
