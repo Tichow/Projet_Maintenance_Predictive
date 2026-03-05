@@ -14,6 +14,7 @@
 10. [Problèmes rencontrés et bugs](#10-problèmes-rencontrés-et-bugs)
 11. [Limites du projet](#11-limites-du-projet)
 12. [Conclusion et pistes d'amélioration](#12-conclusion-et-pistes-damélioration)
+13. [Bonus : reconnaissance de chiffres MNIST sur écran tactile](#13-bonus--reconnaissance-de-chiffres-mnist-sur-écran-tactile)
 
 ---
 
@@ -58,6 +59,11 @@ Projet_Maintenance_Predictive/
 │   │   └── AI4I2020.ioc            # Configuration CubeMX (périphériques, X-CUBE-AI)
 │   ├── rapport-analyse.txt         # Rapport d'analyse mémoire du modèle
 │   └── rapport-validation-desktop.txt  # Rapport de validation desktop (cross-accuracy)
+│
+├── bonus/
+│   ├── CNN_C2_16_10/               # Modèle MNIST du prof (notebook, .h5, données test)
+│   ├── MnistNetwork/               # Projet CubeMX avec X-CUBE-AI configuré pour MNIST
+│   └── MnistTouchscreen/           # Projet final : dessin tactile + inférence (voir section 13)
 │
 ├── images/                         # Graphiques et captures d'écran pour ce README
 ├── requirements.txt                # Dépendances Python
@@ -555,6 +561,137 @@ Le point faible reste TWF (recall 0.22), et c'est un problème de données, pas 
 - **CRC sur l'UART :** Ajouter un CRC8 à chaque échange permettrait de détecter les erreurs de transmission. Facile à implémenter des deux côtés.
 - **Architecture alternative :** Un réseau avec BatchNormalization ou LeakyReLU pourrait améliorer la convergence sur les classes rares. J'ai pas testé ces pistes par manque de temps, mais c'est quelque chose à explorer.
 - **Acquisition capteurs en temps réel :** Brancher de vrais capteurs (température, accéléromètre, etc.) sur la carte et faire de l'inférence en continu plutôt qu'en envoyant les données depuis un PC.
+
+---
+
+## 13. Bonus : reconnaissance de chiffres MNIST sur écran tactile
+
+### L'idée
+
+Le projet principal est terminé et fonctionne, mais il reste un truc un peu frustrant : la carte a un bel écran AMOLED tactile de 390×390 pixels, et on ne l'utilise pas du tout. En cours, le professeur nous avait fourni un petit CNN pour classifier les chiffres MNIST en classe, et la carte supporte le tactile capacitif. D'où l'idée : dessiner un chiffre au doigt sur l'écran, et laisser le modèle embarqué deviner de quel chiffre il s'agit (si je suis parfaitement honnête, le professeur nous l'a suggéré, un peu comme une bouteille à la mer). C'est une quête secondaire, le but c'est surtout de s'amuser et de voir ce qui se passe quand on confronte un modèle entraîné sur des données propres à des entrées dessinées à la main sur un écran tactile pas vraiment fait pour ça.
+
+### Le modèle
+
+Le modèle vient du notebook du prof (`bonus/CNN_C2_16_10/Embedded_AI_colab.ipynb`). C'est un petit CNN minimaliste :
+
+| Couche | Détail |
+|--------|--------|
+| Conv2D | 2 filtres 3×3, padding same, ReLU |
+| MaxPooling2D | 2×2 |
+| Flatten | — |
+| Dense | 16 neurones, ReLU |
+| Dense (sortie) | 10 neurones, softmax |
+
+Il atteint 95.8% d'accuracy sur le test set MNIST après 5 epochs. C'est honnête pour un réseau aussi petit (6 478 paramètres, 25 Ko de poids), mais c'est clairement pas un modèle de production — deux filtres de convolution, c'est le strict minimum pour extraire des features spatiales. En comparaison, un LeNet-5 classique a 6 couches et ~60 000 paramètres.
+
+L'import du `.h5` dans X-CUBE-AI s'est fait sans problème cette fois (contrairement au projet principal, le bug Keras 3 / `quantization_config` n'affecte pas ce modèle). Le rapport d'analyse est dans `bonus/MnistNetwork/X-CUBE-AI/App/mnist_generate_report.txt` : 25.3 KiB de poids en Flash, 3.8 KiB d'activations en RAM, 23 874 MACC.
+
+### Organisation des dossiers bonus
+
+Le travail bonus est réparti en trois dossiers, chacun correspondant à une étape :
+
+```
+bonus/
+├── CNN_C2_16_10/                        # Étape 1 : le modèle du cours
+│   ├── Embedded_AI_colab.ipynb          # Notebook d'entraînement du CNN MNIST
+│   ├── CNN_Mnist.py                     # Script Python équivalent au notebook
+│   ├── MNIST_NN_C2_16_10.h5            # Modèle entraîné au format Keras (.h5)
+│   ├── mnist.npz                        # Dataset MNIST complet
+│   ├── MNIST_xtest_NN_C2_16_10.npy     # Données de test (images 28×28)
+│   └── MNIST_ytest_NN_C2_16_10.npy     # Labels de test
+│
+├── MnistNetwork/                        # Étape 2 : projet CubeMX avec X-CUBE-AI
+│   ├── MnistNetwork.ioc                 # Configuration CubeMX (UART + X-CUBE-AI)
+│   ├── X-CUBE-AI/App/
+│   │   ├── mnist.c / mnist.h            # Code C du réseau généré par X-CUBE-AI
+│   │   ├── mnist_data*.c/h              # Poids et paramètres du modèle
+│   │   ├── mnist_generate_report.txt    # Rapport d'analyse mémoire
+│   │   └── app_x-cube-ai.c/h           # Squelette applicatif généré
+│   └── Middlewares/ST/AI/               # Runtime X-CUBE-AI (headers + lib statique)
+│
+└── MnistTouchscreen/                    # Étape 3 : le projet final
+    ├── Src/main.c                       # Code applicatif : dessin, inférence, affichage
+    ├── X-CUBE-AI/App/                   # Fichiers AI copiés depuis MnistNetwork
+    │   └── app_x-cube-ai.c/h           # Modifié pour exposer ai_run() et les buffers
+    ├── Inc/, Src/                       # Headers et sources BSP (repris de l'exemple ST)
+    └── STM32CubeIDE/                    # Projet Eclipse (.project, .cproject)
+```
+
+**`CNN_C2_16_10/`** contient le notebook fourni par le professeur, mais rédigé par Kévin Hector, post doctorant de l'école, et le modèle `.h5` entraîné. C'est le point de départ : on ne touche à rien dedans, on récupère juste le `.h5` pour le donner à X-CUBE-AI.
+
+**`MnistNetwork/`** est le projet CubeMX qu'on a créé en cours pour importer le modèle dans X-CUBE-AI. C'est un projet STM32 classique avec UART, mais sans aucune gestion de l'écran. Son rôle dans le bonus, c'est uniquement de servir de source pour les fichiers générés par X-CUBE-AI (le code C du réseau, les poids, le runtime). On n'a pas besoin de le compiler tel quel — on copie ses fichiers AI dans le projet final.
+
+**`MnistTouchscreen/`** est le projet qui tourne sur la carte. Il est basé sur l'exemple BSP de ST (qui gère l'écran, le tactile, le joystick), dans lequel on a intégré les fichiers X-CUBE-AI de MnistNetwork et réécrit le `main.c`.
+
+### L'approche : repartir de l'exemple BSP
+
+Le projet CubeMX qu'on avait commencé en cours (`bonus/MnistNetwork/`) avait X-CUBE-AI configuré, mais il manquait tout ce qui concerne l'écran : les périphériques DSI, LTDC, GFXMMU, DMA2D, le driver de l'IO expander MFX qui contrôle l'alimentation de l'écran, le driver tactile FT3267... Configurer tout ça manuellement dans CubeMX aurait été très fastidieux.
+
+La solution beaucoup plus simple : repartir de l'**exemple BSP** fourni par ST dans le firmware package (`STM32Cube_FW_L4_V1.18.2/Projects/32L4R9IDISCOVERY/Examples/BSP/`). Ce projet a déjà tout ce qu'il faut : l'écran LCD fonctionne, le tactile est configuré, le joystick aussi. Il suffisait d'y ajouter X-CUBE-AI (en copiant les fichiers générés par le projet MnistNetwork) et de réécrire le `main.c` pour remplacer les démos BSP par notre logique MNIST.
+
+Concrètement, le travail côté code se résume à :
+- Copier le projet BSP dans `bonus/MnistTouchscreen/` et corriger les chemins relatifs des fichiers (le projet BSP utilise des liens vers le repository STM32Cube qui cassent quand on le déplace)
+- Copier les fichiers X-CUBE-AI (modèle + runtime) depuis MnistNetwork
+- Ajouter les include paths et la librairie statique AI au projet
+- Réécrire `main.c` : interface de dessin, gestion du tactile, inférence, affichage du résultat
+- Modifier `app_x-cube-ai.c` pour rendre `ai_run()` et les buffers accessibles depuis le main
+
+Le code BSP d'initialisation hardware (clock, LCD, touch, MFX, interruptions) est repris quasi tel quel de l'exemple ST. Le travail "maison" c'est vraiment la partie applicative : le canvas de dessin, la grille 28×28, le preprocessing et l'appel au modèle.
+
+### Ce qui ne marchait pas (et comment on a ajusté)
+
+**Le tactile était saccadé.** Les premiers essais donnaient des gros points isolés au lieu de traits continus. Le problème venait du fait que le tactile passait par des interruptions MFX qui arrivent à une fréquence assez basse. La solution : passer en **polling continu** de `BSP_TS_GetState()` dans la boucle principale (~100 Hz), et tracer des lignes interpolées entre chaque paire de points successifs. Pour que le trait soit uniforme (pas de lignes fines entre les gros points), on dessine des cercles le long de la ligne plutôt qu'un simple `DrawLine`.
+
+**Le modèle prédisait n'importe quoi.** Les premières inférences donnaient des résultats complètement aléatoires. En fait, les chiffres dessinés au doigt sur l'écran sont très différents des images MNIST sur lesquelles le modèle a été entraîné : MNIST a des traits anti-aliasés (valeurs graduelles entre 0 et 255), alors que notre grille 28×28 n'avait que du noir (0) ou du blanc (255), avec des traits trop fins. Deux corrections :
+- **Épaissir les traits** dans la grille : un rayon de 2 cellules autour de chaque point touché, ce qui donne des traits de 3-4 pixels de large en 28×28, similaire à MNIST
+- **Appliquer un flou gaussien 3×3** sur la grille avant l'inférence, pour simuler l'anti-aliasing qu'on trouve dans les données MNIST
+
+**Le bouton SEL du joystick ne répondait pas.** Le bouton SEL est sur un GPIO direct, pas via le MFX comme les directions. Or le code ne vérifiait l'état du joystick que dans le handler MFX. Il a fallu sortir le check de SEL de ce bloc pour qu'il soit traité indépendamment.
+
+**Les pourcentages ne s'affichaient pas.** Le projet utilise `--specs=nano.specs` qui désactive le support de `%f` dans `sprintf`. On est passé à un format `%d` avec conversion entière.
+
+### Résultat
+
+![Vue globale de la carte avec prédiction](images/carte_globale_prediction.jpeg)
+
+![Zoom sur l'écran avec prédiction](images/zoom_ecran_prediction.jpeg)
+
+Ça marche... plus ou moins. Sur la photo ci-dessus, on voit un **3** reconnu avec **99% de confiance** ça fait rêver dit comme ça, mais il faut être honnête : c'est loin d'être comme ça à chaque fois. Pour obtenir ce résultat, j'ai dû m'appliquer à imiter la forme des chiffres tels qu'ils apparaissent dans le dataset MNIST, c'est-à-dire des traits arrondis, bien centrés, avec une certaine épaisseur. Ce n'est pas du tout comme ça que j'écris mes 3 naturellement.
+
+Quand on dessine un chiffre bien gros, bien centré, avec des traits propres, le modèle le reconnaît assez souvent correctement. Les chiffres "faciles" sont le **0** (forme très distinctive), le **1** (un trait vertical) et le **7**. Les plus difficiles sont le **5** et le **8**, probablement parce qu'ils demandent des courbes précises que l'écran tactile ne capture pas très bien.
+
+D'expérience, le taux de réussite dépend énormément de la façon dont on dessine. Si on trace lentement avec des traits épais et centrés, ça passe bien. Si on va vite ou qu'on dessine petit dans un coin, c'est beaucoup moins fiable. Au final ça montre bien qu'on peut arriver facilement à des petits résultats comme ça avec un modèle embarqué, mais que la vraie difficulté c'est le gap entre les données d'entraînement et les conditions réelles d'utilisation.
+
+### Limites et analyse
+
+Il faut être honnête : les performances sont assez moyennes en conditions réelles, et c'est dû à plusieurs facteurs cumulés.
+
+**L'écran tactile n'est pas fait pour ça.** Le FT3267 est un contrôleur tactile capacitif correct, mais la résolution et la fréquence de polling ne sont pas celles d'une tablette graphique. Le doigt est un outil de pointage imprécis, et les événements tactiles arrivent avec une granularité qui crée inévitablement des discontinuités dans le trait, malgré l'interpolation.
+
+**Le modèle est très petit.** Avec seulement 2 filtres de convolution, le CNN n'a quasiment pas de capacité à généraliser au-delà de la distribution exacte de MNIST. Les chiffres dessinés au doigt ont une esthétique différente (épaisseur variable, inclinaison, centrage approximatif), et le modèle n'a pas été entraîné pour gérer cette variabilité. Un modèle plus gros (genre LeNet-5 avec 6/16 filtres) serait probablement beaucoup plus robuste.
+
+**Les données d'entrée sont très différentes de MNIST.** C'est le point fondamental. MNIST contient des chiffres scannés, nettoyés, centrés et normalisés. Nos chiffres dessinés au doigt n'ont aucun de ces traitements. Le flou gaussien aide un peu, mais on pourrait aller plus loin : centrer automatiquement le dessin dans la grille 28×28, normaliser l'épaisseur des traits, voire appliquer un morphological thinning.
+
+### Ce qu'on pourrait améliorer
+
+- **Un meilleur modèle** : entraîner un CNN plus profond (4-6 couches, 16-32 filtres) avec du data augmentation (rotation, translation, épaisseur variable) pour le rendre robuste aux variations de style d'écriture
+- **Centrage automatique** : après le dessin, recentrer le contenu de la grille 28×28 pour que le chiffre soit au milieu, comme dans MNIST
+- **Amincissement morphologique** : normaliser l'épaisseur des traits pour se rapprocher de la distribution MNIST
+- **Polling tactile plus rapide** : réduire le délai de polling ou utiliser le DMA pour les transferts I2C
+
+### En résumé
+
+C'est un bonus qui était surtout là pour le fun et pour explorer les limites d'un modèle embarqué confronté à des données réelles. Le travail en lui-même était assez minime (l'essentiel de l'infrastructure BSP est repris de l'exemple ST, le modèle est celui du prof), mais c'est satisfaisant de voir un chiffre dessiné au doigt être reconnu par un CNN qui tourne sur un micro-contrôleur. Et quand ça marche pas, c'est instructif aussi : ça illustre bien à quel point la qualité et la distribution des données d'entrée comptent, parfois plus que l'architecture du modèle elle-même.
+
+## Remerciements
+
+Ce projet a une petite histoire personnelle derrière. Je l'avais raté l'année dernière, et c'est quelque chose que j'avais assez mal vécu, j'avais été vraiment déçu de moi. En m'y replongeant cette année, je me suis rendu compte que j'étais totalement à côté de la plaque la première fois, je n'avais pas compris les enjeux du tout. Sans dire que l'IA embarquée est devenue une passion, j'ai pris beaucoup plus de plaisir cette année, et le projet m'a sincèrement beaucoup apporté.
+
+Merci à mon professeur d'IA embarquée, qui a su me donner de bons conseils suite à cet échec. C'est grâce à ses retours que j'ai abordé le projet différemment cette année.
+
+Merci aussi à un ami, qui préfère rester anonyme, qui m'a aidé sur la partie bonus pour adapter le projet BSP à mon cas d'usage. Sans son coup de main, la quête secondaire MNIST aurait probablement pas vu le jour.
+
+Pour la partie bonus justement, je l'ai faite parce que ça me faisait plaisir, et la simple satisfaction d'avoir réussi à faire tourner ça sur la carte est déjà très enrichissante en soi.
 
 ---
 
