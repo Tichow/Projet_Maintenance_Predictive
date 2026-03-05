@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    mnist_data_params.h
   * @author  AST Embedded Analytics Research Platform
-  * @date    2026-02-23T11:43:52+0100
+  * @date    2026-03-06T00:18:09+0100
   * @brief   AI Tool Automatic Code Generator for Embedded NN computing
   ******************************************************************************
   * Copyright (c) 2026 STMicroelectronics.
@@ -28,18 +28,18 @@
 
 
 #define AI_MNIST_DATA_ACTIVATIONS_SIZES \
-  { 3868, }
-#define AI_MNIST_DATA_ACTIVATIONS_SIZE     (3868)
+  { 10516, }
+#define AI_MNIST_DATA_ACTIVATIONS_SIZE     (10516)
 #define AI_MNIST_DATA_ACTIVATIONS_COUNT    (1)
-#define AI_MNIST_DATA_ACTIVATION_1_SIZE    (3868)
+#define AI_MNIST_DATA_ACTIVATION_1_SIZE    (10516)
 
 
 
 #define AI_MNIST_DATA_WEIGHTS_SIZES \
-  { 25912, }
-#define AI_MNIST_DATA_WEIGHTS_SIZE         (25912)
+  { 106792, }
+#define AI_MNIST_DATA_WEIGHTS_SIZE         (106792)
 #define AI_MNIST_DATA_WEIGHTS_COUNT        (1)
-#define AI_MNIST_DATA_WEIGHT_1_SIZE        (25912)
+#define AI_MNIST_DATA_WEIGHT_1_SIZE        (106792)
 
 
 
