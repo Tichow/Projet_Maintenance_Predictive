@@ -5,6 +5,15 @@
 1. [Contexte et objectif](#1-contexte-et-objectif)
 2. [Structure du dépôt](#2-structure-du-dépôt)
 3. [Installation et utilisation](#3-installation-et-utilisation)
+4. [Analyse du dataset](#4-analyse-du-dataset-ai4i-2020)
+5. [Premier modèle : sans rééquilibrage](#5-premier-modèle--sans-rééquilibrage)
+6. [Deuxième modèle : avec SMOTE](#6-deuxième-modèle--avec-smote)
+7. [Export et conversion du modèle](#7-export-et-conversion-du-modèle)
+8. [Déploiement sur STM32L4R9](#8-déploiement-sur-stm32l4r9)
+9. [Résultats de l'inférence embarquée](#9-résultats-de-linférence-embarquée)
+10. [Problèmes rencontrés et bugs](#10-problèmes-rencontrés-et-bugs)
+11. [Limites du projet](#11-limites-du-projet)
+12. [Conclusion et pistes d'amélioration](#12-conclusion-et-pistes-damélioration)
 
 ---
 
