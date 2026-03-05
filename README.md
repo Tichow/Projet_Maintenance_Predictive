@@ -149,6 +149,79 @@ Le choix du **softmax** plutôt que des sigmoïdes indépendantes (approche mult
 
 ---
 
+## 5. Premier modèle : sans rééquilibrage
+
+### Architecture
+
+Pour le premier essai, j'ai utilisé une architecture assez classique de MLP (Multi-Layer Perceptron) :
+
+| Couche | Neurones | Activation | Dropout |
+|--------|----------|------------|---------|
+| Dense 1 | 64 | ReLU | 0.15 |
+| Dense 2 | 32 | ReLU | 0.15 |
+| Dense 3 | 16 | ReLU | - |
+| Sortie | 5 | Softmax | - |
+
+L'architecture est compacte, et c'est voulu. D'une part, le modèle doit tourner sur un microcontrôleur avec des ressources limitées. D'autre part, on ne classifie que 8 features, il n'y a pas besoin d'un réseau à 100 000 paramètres pour ça. J'ai quand même ajouté 3 couches cachées au lieu de 2 (certains projets se contentent de Input → 64 → Sortie) parce que ça permettait de mieux séparer HDF de PWF, qui ont des signatures assez proches dans les données.
+
+Le dropout à 0.15 est volontairement léger. Avec un réseau aussi petit, un dropout trop agressif (genre 0.4 ou 0.5) empêchait le modèle de converger correctement. C'est quelque chose que j'ai constaté en testant : à 0.3, l'accuracy de validation oscillait pas mal et les courbes de loss étaient instables. À 0.15, le modèle apprenait de façon plus régulière.
+
+### Résultats
+
+![Courbes d'entraînement sans rééquilibrage](images/training_curves_no_balance.png)
+
+![Matrice de confusion sans rééquilibrage](images/confusion_matrix_no_balance.png)
+
+L'accuracy atteint 99%. Sur le papier c'est excellent. En réalité c'est trompeur. Le modèle classe correctement presque toutes les machines fonctionnelles, et il arrive à détecter une partie des pannes HDF (recall 0.81), PWF (0.75) et OSF (0.95). Mais pour TWF, c'est le néant : recall de 0.00. Les 9 instances de TWF dans le test set sont toutes classées comme fonctionnelles.
+
+Le problème, c'est que TWF ne représente qu'une trentaine d'exemples dans le training set. Le modèle n'a littéralement pas assez de matière pour apprendre à quoi ressemble cette panne, et comme il minimise la loss globale, il "préfère" classer ces cas ambigus en Functional (la classe dominante) plutôt que de risquer des erreurs.
+
+En contexte industriel, un modèle qui rate 100% d'un type de panne est inutilisable. L'accuracy globale ne veut rien dire si on ne regarde pas le recall par classe.
+
+---
+
+## 6. Deuxième modèle : avec SMOTE
+
+### Pourquoi SMOTE et pas autre chose
+
+Pour corriger le problème de déséquilibre, j'ai utilisé SMOTE (Synthetic Minority Over-sampling Technique). L'idée de SMOTE, c'est de générer des points synthétiques pour les classes minoritaires en interpolant entre des exemples existants et leurs plus proches voisins. C'est mieux que de simplement dupliquer les exemples (oversampling naïf), parce que ça crée de la variété dans les données synthétiques au lieu de juste répéter les mêmes points.
+
+J'aurais pu utiliser des class weights à la place (donner plus de poids aux erreurs sur les classes rares pendant l'entraînement), mais en pratique SMOTE donnait de meilleurs résultats sur ce dataset, surtout pour TWF.
+
+### Choix importants dans l'implémentation
+
+Quelques détails qui ont leur importance et qui m'ont demandé pas mal de tâtonnements :
+
+- **Split avant SMOTE, pas l'inverse.** C'est un piège classique : si on applique SMOTE sur tout le dataset puis qu'on split, les points synthétiques du test set sont des interpolations de points du training set. On a du data leakage et les métriques de test sont faussées. En faisant le split d'abord, le test set garde la distribution réelle (~96.6% Functional), ce qui donne des métriques honnêtes.
+
+- **k_neighbors=3 au lieu de 5 (défaut).** TWF ne compte qu'une trentaine d'exemples d'entraînement. Avec k=5, SMOTE va chercher des voisins trop éloignés dans l'espace des features, et les points synthétiques générés sont de mauvaise qualité (ils tombent dans des zones qui ne correspondent pas vraiment à une panne TWF). Avec k=3, les voisins sont plus proches et les interpolations ont plus de sens.
+
+- **Filtrage des cas multi-label.** 23 lignes du dataset avaient plusieurs types de panne en même temps (par exemple TWF et OSF simultanément). Je les ai retirées avant d'appliquer SMOTE, parce que l'interpolation entre un voisin TWF pur et un voisin TWF+OSF produirait des points incohérents. Ce n'est que 23 lignes sur 8000, donc la perte est négligeable.
+
+- **StandardScaler avant SMOTE.** SMOTE calcule les distances euclidiennes entre points pour trouver les voisins. Sans normalisation, la vitesse de rotation (en milliers de rpm) dominerait complètement le calcul de distance par rapport au couple (en Nm) ou à l'usure (en minutes). Le StandardScaler met toutes les features sur la même échelle.
+
+### Résultats
+
+![Courbes d'entraînement avec SMOTE](images/training_curves_balanced.png)
+
+![Matrice de confusion avec SMOTE](images/confusion_matrix_balanced.png)
+
+Le rééquilibrage a corrigé le défaut principal. Les recalls par classe :
+
+| Classe | Recall sans SMOTE | Recall avec SMOTE |
+|--------|-------------------|-------------------|
+| Functional | ~1.00 | 0.97 |
+| TWF | 0.00 | 0.22 |
+| HDF | 0.81 | 0.86 |
+| PWF | 0.75 | 0.88 |
+| OSF | 0.95 | 0.94 |
+
+TWF passe de 0.00 à 0.22, ce qui reste faible mais au moins le modèle a commencé à apprendre une signature pour cette panne. HDF et PWF s'améliorent nettement. OSF reste stable.
+
+Le compromis, c'est que 66 machines fonctionnelles sont maintenant classées à tort comme défaillantes (contre 8 avant), ce qui fait baisser l'accuracy globale à environ 96%. En contexte industriel, c'est un compromis acceptable : une inspection inutile coûte beaucoup moins cher qu'une panne non détectée. C'est mieux de prédire une fausse panne que de rater une vraie.
+
+---
+
 ## Auteur
 
 Matteo Quintaneiro | Mines Saint-Étienne, 2026
