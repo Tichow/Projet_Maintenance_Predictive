@@ -445,6 +445,110 @@ Le script affiche l'accuracy tous les 200 échantillons pour suivre la progressi
 
 ---
 
+## 9. Résultats de l'inférence embarquée
+
+![Résultats de l'inférence sur cible](images/accuracy_on_target.png)
+
+| Environnement | Accuracy |
+|---------------|----------|
+| Python (entraînement) | ~96% |
+| Validation desktop X-CUBE-AI | 96.04% |
+| **Inférence sur STM32L4R9** | **96.0%** |
+
+L'accuracy sur cible est de **96.0%**, avec **0 erreur UART** sur les 1996 échantillons.
+
+Ce résultat est cohérent avec la validation desktop (96.04%). La différence de 0.04% s'explique par la conversion float → uint8 → float qui introduit une erreur d'arrondi. En pratique, l'argmax est quasiment jamais affecté par une erreur de 0.4%.
+
+Le fait que les 1996 inférences se soient déroulées sans aucune erreur UART confirme que le protocole de communication est fiable et que la carte exécute le modèle de façon stable. Le protocole est minimaliste (pas de checksum, pas de retry), mais sur une liaison USB-série courte et dans un environnement non bruité, ça suffit.
+
+---
+
+## 10. Problèmes rencontrés et bugs
+
+Cette section documente les vrais problèmes que j'ai rencontrés pendant le projet, parce qu'ils ne sont pas toujours évidents et que ça peut éviter des heures de debug à quelqu'un qui ferait un projet similaire.
+
+### Keras 3 et X-CUBE-AI : le piège du .h5
+
+**Symptôme :** L'import du modèle `.h5` dans CubeMX via X-CUBE-AI échoue avec une erreur de désérialisation pas très lisible.
+
+**Cause :** Depuis Keras 3, quand on sauvegarde un modèle en `.h5`, Keras ajoute automatiquement un attribut `quantization_config` dans les métadonnées de chaque couche Dense. Cet attribut n'existait pas dans Keras 2, et X-CUBE-AI v10 ne sait pas le parser. Le message d'erreur ne mentionne pas du tout `quantization_config`, ce qui rend le diagnostic difficile.
+
+**Solution :** Exporter en TFLite plutôt qu'en .h5. Le format TFLite a sa propre sérialisation, indépendante de celle de Keras, et X-CUBE-AI le supporte correctement. C'est d'ailleurs le format recommandé par ST pour les modèles TensorFlow.
+
+**Temps perdu :** Facilement 2 heures à chercher si le problème venait de mon modèle, de la version de TensorFlow, ou de X-CUBE-AI. La solution est tombée en lisant un thread sur le forum ST.
+
+### SDMMC1 bloque le démarrage
+
+**Symptôme :** Après avoir flashé le firmware, la carte ne fait rien. Pas de sortie UART, pas de réponse au script Python. Le debugger montre que le programme est bloqué dans `Error_Handler()`.
+
+**Cause :** La carte STM32L4R9I-Discovery a un slot de carte SD. Par défaut, le périphérique SDMMC1 est activé dans le .ioc. Si aucune carte SD n'est insérée, `MX_SDMMC1_SD_Init()` retourne `HAL_ERROR`, et le code généré par CubeMX appelle `Error_Handler()` en cas d'erreur d'initialisation. Le programme reste bloqué dans une boucle infinie, avant même d'arriver à la logique d'inférence.
+
+**Solution :** Désactiver le périphérique SDMMC1 directement dans le fichier `.ioc` via CubeMX, puis régénérer le code. L'appel à `MX_SDMMC1_SD_Init()` n'est plus généré.
+
+**Ce qui m'a mis sur la piste :** En mettant un breakpoint dans `Error_Handler()` et en remontant la call stack, j'ai vu que ça venait de l'init SDMMC. C'est le genre de bug qui est évident une fois qu'on le sait, mais qui peut faire perdre du temps quand on ne connaît pas bien la carte.
+
+### Buffers d'entrée/sortie et `allocate-inputs`
+
+**Symptôme :** Le firmware crashe (HardFault) dès la première réception UART.
+
+**Cause :** Avec les options `allocate-inputs` et `allocate-outputs`, les buffers d'entrée et de sortie ne sont pas des tableaux statiques déclarés à la compilation. Ce sont des pointeurs qui sont assignés pendant `ai_boostrap()`, quand le réseau est initialisé. Avant cet appel, `data_ins[0]` vaut `NULL`.
+
+Si on essaie d'écrire les données reçues par UART dans `data_ins[0]` avant que `ai_boostrap()` n'ait été appelé, on écrit à l'adresse 0, ce qui provoque un HardFault.
+
+**Solution :** S'assurer que `MX_X_CUBE_AI_Init()` (qui appelle `ai_boostrap()`) est bien exécuté avant `MX_X_CUBE_AI_Process()`. Dans le code généré par CubeMX, c'est normalement garanti par l'ordre des appels dans `main()`, mais si on réorganise le code ou si on ajoute de l'initialisation custom, il faut faire attention à cet ordre.
+
+### Timeout UART trop court
+
+**Symptôme :** L'inférence fonctionne pour quelques échantillons, puis la carte se désynchonise et les résultats deviennent n'importe quoi.
+
+**Cause :** Au début j'avais mis un timeout de 1000 ms pour `HAL_UART_Receive`. Le script Python, selon la charge du PC, pouvait mettre un peu plus de temps à envoyer les 32 octets d'un échantillon (surtout en début de communication ou si d'autres processus tournaient). La carte partait en timeout, renvoyait -1, et la boucle d'inférence s'arrêtait.
+
+**Solution :** Passer le timeout à 5000 ms. C'est large mais ça ne ralentit rien quand la communication est fluide (le timeout ne s'applique que si les données n'arrivent pas).
+
+---
+
+## 11. Limites du projet
+
+Je préfère être transparent sur ce que ce projet ne fait pas ou fait mal :
+
+### TWF reste mal détecté
+
+Le recall de 0.22 sur TWF signifie qu'on ne détecte que 2 pannes sur 9 de ce type dans le test set. C'est un progrès par rapport au 0.00 du premier modèle, mais c'est insuffisant pour un usage réel. La raison est simple : il n'y a que ~34 exemples de TWF dans le training set. SMOTE génère des points synthétiques, mais ils sont interpolés entre des points qui sont eux-mêmes rares et potentiellement bruités. On ne peut pas demander au modèle de faire des miracles avec si peu de données.
+
+### Pas de capteurs réels
+
+Le modèle est testé avec des données envoyées depuis un PC, pas avec de vrais capteurs branchés sur la carte. Dans un déploiement réel, il faudrait gérer l'acquisition des capteurs (I2C, SPI, ADC...), le prétraitement en temps réel (normalisation avec la même moyenne et le même écart-type que le training set), et potentiellement le bruit de mesure.
+
+### Pas de gestion d'erreur robuste
+
+Le protocole UART n'a pas de checksum. Si un octet est corrompu pendant la transmission, la prédiction sera faussée sans qu'on le détecte. Sur les 1996 tests en USB-série direct, il n'y a eu aucune erreur. Mais dans un environnement industriel avec des câbles plus longs ou des interférences électromagnétiques, il faudrait ajouter au minimum un CRC8.
+
+La boucle d'inférence s'arrête à la première erreur. Il n'y a pas de mécanisme de retry ou de watchdog. Pour du test c'est suffisant, mais en production il faudrait que la carte se resynchronise automatiquement après une erreur.
+
+### Le softmax exclut les pannes simultanées
+
+En utilisant softmax en sortie, le modèle ne peut prédire qu'une seule classe à la fois. Les cas (rares) où deux pannes surviennent simultanément ne sont pas gérés. Si c'était un besoin, il faudrait passer à des sigmoïdes indépendantes avec un seuil par classe, mais ça complique l'entraînement et le modèle devrait être plus gros.
+
+---
+
+## 12. Conclusion et pistes d'amélioration
+
+Ce projet couvre la chaîne complète de la maintenance prédictive embarquée, de l'analyse d'un dataset industriel déséquilibré à l'inférence sur cible STM32L4R9 en passant par la gestion du déséquilibre par SMOTE, l'export TFLite, et la validation via X-CUBE-AI.
+
+Le modèle est fonctionnel et détecte la majorité des types de pannes (HDF, PWF, OSF avec des recalls > 0.85). L'accuracy sur cible de 96.0% est cohérente avec la validation desktop, ce qui montre que la conversion et le déploiement n'ont pas dégradé les performances. Le protocole UART est fiable sur les 1996 tests effectués. Le modèle est très léger (23 Ko Flash, 2.8 Ko RAM), ce qui laisse de la marge pour un éventuel enrichissement.
+
+Le point faible reste TWF (recall 0.22), et c'est un problème de données, pas d'architecture.
+
+### Pistes d'amélioration
+
+- **Plus de données pour TWF :** C'est clairement le facteur limitant. Plus de données réelles pour cette classe auraient un impact bien plus grand que n'importe quelle modification d'architecture ou d'hyperparamètres.
+- **Quantification int8 :** Réduirait la taille Flash/RAM par ~4. Pas nécessaire sur la STM32L4R9, mais ça le deviendrait sur un micro plus contraint (STM32L0, STM32G0...).
+- **CRC sur l'UART :** Ajouter un CRC8 à chaque échange permettrait de détecter les erreurs de transmission. Facile à implémenter des deux côtés.
+- **Architecture alternative :** Un réseau avec BatchNormalization ou LeakyReLU pourrait améliorer la convergence sur les classes rares. J'ai pas testé ces pistes par manque de temps, mais c'est quelque chose à explorer.
+- **Acquisition capteurs en temps réel :** Brancher de vrais capteurs (température, accéléromètre, etc.) sur la carte et faire de l'inférence en continu plutôt qu'en envoyant les données depuis un PC.
+
+---
+
 ## Auteur
 
 Matteo Quintaneiro | Mines Saint-Étienne, 2026
