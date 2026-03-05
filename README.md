@@ -60,19 +60,30 @@ Projet_Maintenance_Predictive/
 │   ├── rapport-analyse.txt         # Rapport d'analyse mémoire du modèle
 │   └── rapport-validation-desktop.txt  # Rapport de validation desktop (cross-accuracy)
 │
-├── bonus/
-│   ├── CNN_C2_16_10/               # Modèle MNIST du prof (notebook, .h5, données test)
-│   ├── MnistNetwork/               # Projet CubeMX avec X-CUBE-AI configuré pour MNIST
-│   └── MnistTouchscreen/           # Projet final : dessin tactile + inférence (voir section 13)
+├── bonus/                            # Bonus : reconnaissance MNIST sur écran tactile
+│   ├── CNN_C2_16_10/                 # Notebook d'entraînement et modèle MNIST
+│   │   ├── Embedded_AI_colab.ipynb   # Notebook (modifié : architecture améliorée)
+│   │   ├── MNIST_NN_C2_16_10.tflite  # Modèle amélioré exporté en TFLite
+│   │   ├── MNIST_NN_C2_16_10.h5      # Modèle au format Keras
+│   │   └── mnist-rapport-analyse.txt # Rapport d'analyse X-CUBE-AI
+│   ├── MnistNetwork/                 # Projet CubeMX intermédiaire (génération X-CUBE-AI)
+│   │   ├── MnistNetwork.ioc          # Configuration CubeMX
+│   │   └── X-CUBE-AI/App/            # Code C généré (réseau, poids, runtime)
+│   └── MnistTouchscreen/             # Projet final sur la carte
+│       ├── Src/main.c                # Logique dessin tactile + inférence + affichage
+│       ├── X-CUBE-AI/App/            # Fichiers AI (copiés + modifiés)
+│       └── STM32CubeIDE/             # Projet Eclipse pour build/flash
 │
-├── images/                         # Graphiques et captures d'écran pour ce README
-├── requirements.txt                # Dépendances Python
-└── README.md                       # Ce fichier
+├── md/                               # Guide détaillé MNIST touchscreen
+├── images/                           # Graphiques et captures d'écran pour ce README
+├── requirements.txt                  # Dépendances Python
+└── README.md                         # Ce fichier
 ```
 
 **Fichiers clés à regarder en priorité :**
 - Le notebook `notebook/TP_IA_EMBARQUEE.ipynb` contient toute la logique d'entraînement, de l'analyse des données à l'export du modèle.
 - Le fichier `stm32/AI4I2020/X-CUBE-AI/App/app_x-cube-ai.c` contient le code que j'ai écrit pour faire communiquer la carte avec le PC et lancer l'inférence.
+- Pour le bonus : `bonus/MnistTouchscreen/Src/main.c` est le code applicatif de l'écran tactile, et `bonus/CNN_C2_16_10/Embedded_AI_colab.ipynb` le notebook avec le modèle amélioré.
 - Le script `scripts/communication.py` est ce qu'on exécute côté PC pour envoyer les données de test et récupérer les prédictions.
 
 ---
@@ -570,9 +581,9 @@ Le point faible reste TWF (recall 0.22), et c'est un problème de données, pas 
 
 Le projet principal est terminé et fonctionne, mais il reste un truc un peu frustrant : la carte a un bel écran AMOLED tactile de 390×390 pixels, et on ne l'utilise pas du tout. En cours, le professeur nous avait fourni un petit CNN pour classifier les chiffres MNIST en classe, et la carte supporte le tactile capacitif. D'où l'idée : dessiner un chiffre au doigt sur l'écran, et laisser le modèle embarqué deviner de quel chiffre il s'agit (si je suis parfaitement honnête, le professeur nous l'a suggéré, un peu comme une bouteille à la mer). C'est une quête secondaire, le but c'est surtout de s'amuser et de voir ce qui se passe quand on confronte un modèle entraîné sur des données propres à des entrées dessinées à la main sur un écran tactile pas vraiment fait pour ça.
 
-### Le modèle
+### Le modèle original du prof
 
-Le modèle vient du notebook du prof (`bonus/CNN_C2_16_10/Embedded_AI_colab.ipynb`). C'est un petit CNN minimaliste :
+Le point de départ c'est le notebook du prof (`bonus/CNN_C2_16_10/Embedded_AI_colab.ipynb`, rédigé par Kevin Hector, post-doctorant de l'école). C'est un petit CNN minimaliste :
 
 | Couche | Détail |
 |--------|--------|
@@ -582,9 +593,56 @@ Le modèle vient du notebook du prof (`bonus/CNN_C2_16_10/Embedded_AI_colab.ipyn
 | Dense | 16 neurones, ReLU |
 | Dense (sortie) | 10 neurones, softmax |
 
-Il atteint 95.8% d'accuracy sur le test set MNIST après 5 epochs. C'est honnête pour un réseau aussi petit (6 478 paramètres, 25 Ko de poids), mais c'est clairement pas un modèle de production — deux filtres de convolution, c'est le strict minimum pour extraire des features spatiales. En comparaison, un LeNet-5 classique a 6 couches et ~60 000 paramètres.
+Il atteint 95.8% d'accuracy sur le test set MNIST après 5 epochs. C'est honnête pour un réseau aussi petit (6 478 paramètres, 25 Ko de poids), mais c'est clairement pas un modèle de production — deux filtres de convolution, c'est le strict minimum pour extraire des features spatiales.
 
-L'import du `.h5` dans X-CUBE-AI s'est fait sans problème cette fois (contrairement au projet principal, le bug Keras 3 / `quantization_config` n'affecte pas ce modèle). Le rapport d'analyse est dans `bonus/MnistNetwork/X-CUBE-AI/App/mnist_generate_report.txt` : 25.3 KiB de poids en Flash, 3.8 KiB d'activations en RAM, 23 874 MACC.
+En testant ce modèle sur la carte, les résultats étaient assez décevants : le modèle se trompait souvent, même sur des chiffres relativement bien dessinés. C'est ce qui m'a poussé à modifier l'architecture.
+
+### Le modèle amélioré
+
+J'ai repris le notebook et modifié l'architecture pour donner plus de capacité au réseau :
+
+| Couche | Détail |
+|--------|--------|
+| Conv2D | 8 filtres 3×3, padding same, ReLU |
+| MaxPooling2D | 2×2 |
+| Conv2D | 16 filtres 3×3, padding same, ReLU |
+| MaxPooling2D | 2×2 |
+| Flatten | — |
+| Dropout | 0.25 |
+| Dense | 32 neurones, ReLU |
+| Dense (sortie) | 10 neurones, softmax |
+
+Les changements principaux : une deuxième couche de convolution (ça donne une hiérarchie de features — la première couche détecte des bords, la deuxième les combine en formes), beaucoup plus de filtres (8 puis 16 au lieu de 2), et un Dropout de 0.25 pour éviter l'overfitting. L'entraînement passe de 5 à 10 epochs pour laisser le temps au réseau plus profond de converger.
+
+Le résultat : **98.8% d'accuracy** sur le test set MNIST, contre 95.8% avant. C'est un gain de 3 points, ce qui paraît modeste en valeur absolue mais qui fait une vraie différence en pratique — on passe de ~1 erreur sur 24 à ~1 erreur sur 83.
+
+Pour l'export, le `.h5` de Keras 3 posait le même problème de `quantization_config` que dans le projet principal (voir section 10), donc on exporte en TFLite. Le rapport d'analyse complet est dans `bonus/CNN_C2_16_10/mnist-rapport-analyse.txt`.
+
+### Analyse mémoire du modèle amélioré
+
+Le compromis de cette amélioration, c'est évidemment la taille. Voici la comparaison :
+
+| Métrique | Modèle original | Modèle amélioré |
+|----------|----------------|-----------------|
+| Paramètres | 6 478 | 26 698 |
+| Poids (Flash) | 25.3 KiB | 104.3 KiB |
+| Activations (RAM) | 3.8 KiB | 10.3 KiB |
+| MACC | 23 874 | 326 712 |
+| **Accuracy MNIST** | **95.8%** | **98.8%** |
+
+On multiplie la taille par ~4 et les opérations par ~14. C'est un coût non négligeable. Sur la STM32L4R9 qui a 2 Mo de Flash et 640 Ko de RAM, ça passe largement (104 Ko c'est ~5% de la Flash), mais sur un micro plus contraint ce serait problématique. Et pour un gain de 3 points d'accuracy, on peut se demander si le ratio coût/bénéfice est vraiment optimal — un modèle intermédiaire (genre 4/8 filtres) aurait peut-être suffi.
+
+Le graphe du réseau généré par X-CUBE-AI montre bien la hiérarchie des couches :
+
+![Graphe du modèle MNIST amélioré](images/show-graph-mnist.png)
+
+On voit les deux étages Conv2D + MaxPool suivis des couches Dense. La couche `gemm_8` (Dense 784→32) concentre à elle seule 94% de la mémoire poids — c'est le goulot d'étranglement, parce que le Flatten après le deuxième MaxPool produit un vecteur de 784 valeurs (7×7×16) qui doit être multiplié par une matrice 784×32.
+
+Le diagramme de layout mémoire montre comment les activations sont réutilisées pendant l'inférence :
+
+![Layout mémoire du modèle MNIST](images/memory-layout-mnist.png)
+
+Comme pour le projet principal, X-CUBE-AI optimise l'usage de la RAM avec un mécanisme d'overlay : les buffers des couches intermédiaires sont réutilisés dès qu'ils ne sont plus nécessaires, ce qui limite le budget total d'activations à 10.3 KiB au lieu de la somme brute de tous les tenseurs.
 
 ### Organisation des dossiers bonus
 
@@ -654,32 +712,38 @@ Le code BSP d'initialisation hardware (clock, LCD, touch, MFX, interruptions) es
 
 ![Vue globale de la carte avec prédiction](images/carte_globale_prediction.jpeg)
 
-Ça marche... plus ou moins. Sur la photo ci-dessus, on voit un **3** reconnu avec **99% de confiance** ça fait rêver dit comme ça, mais il faut être honnête : c'est loin d'être comme ça à chaque fois. Pour obtenir ce résultat, j'ai dû m'appliquer à imiter la forme des chiffres tels qu'ils apparaissent dans le dataset MNIST, c'est-à-dire des traits arrondis, bien centrés, avec une certaine épaisseur. Ce n'est pas du tout comme ça que j'écris mes 3 naturellement.
+![Zoom sur l'écran avec prédiction](images/zoom_ecran_prediction.jpeg)
 
-Quand on dessine un chiffre bien gros, bien centré, avec des traits propres, le modèle le reconnaît assez souvent correctement. Les chiffres "faciles" sont le **0** (forme très distinctive), le **1** (un trait vertical) et le **7**. Les plus difficiles sont le **5** et le **8**, probablement parce qu'ils demandent des courbes précises que l'écran tactile ne capture pas très bien.
+Avec le modèle amélioré, la différence est vraiment flagrante. Avec le modèle original du prof, j'étais content quand ça arrivait à reconnaître un chiffre une fois sur trois — il fallait s'y reprendre plusieurs fois, bien centrer, bien appuyer, et même là c'était aléatoire. Avec le nouveau modèle, ça one shot souvent : on dessine, on valide, et c'est le bon chiffre du premier coup.
 
-D'expérience, le taux de réussite dépend énormément de la façon dont on dessine. Si on trace lentement avec des traits épais et centrés, ça passe bien. Si on va vite ou qu'on dessine petit dans un coin, c'est beaucoup moins fiable. Au final ça montre bien qu'on peut arriver facilement à des petits résultats comme ça avec un modèle embarqué, mais que la vraie difficulté c'est le gap entre les données d'entraînement et les conditions réelles d'utilisation.
+Sur la photo ci-dessus, on voit un **3** reconnu avec **99% de confiance**. Ça fait rêver dit comme ça, mais il faut être honnête : c'est loin d'être comme ça à chaque fois. Pour obtenir ce résultat, j'ai dû m'appliquer à imiter la forme des chiffres tels qu'ils apparaissent dans le dataset MNIST, c'est-à-dire des traits arrondis, bien centrés, avec une certaine épaisseur. Ce n'est pas du tout comme ça que j'écris mes 3 naturellement.
+
+La confiance du modèle est généralement beaucoup plus tranchée qu'avant (moins d'hésitation entre deux classes). Les chiffres "faciles" sont le **0** (forme très distinctive), le **1** (un trait vertical) et le **7**. Les plus difficiles restent le **5** et le **8**, probablement parce qu'ils demandent des courbes précises que l'écran tactile ne capture pas très bien.
+
+D'expérience, le taux de réussite dépend encore énormément de la façon dont on dessine. Si on trace lentement avec des traits épais et centrés, ça passe bien. Si on va vite ou qu'on dessine petit dans un coin, c'est beaucoup moins fiable. Au final ça montre bien qu'on peut arriver facilement à des petits résultats comme ça avec un modèle embarqué, mais que la vraie difficulté c'est le gap entre les données d'entraînement et les conditions réelles d'utilisation.
 
 ### Limites et analyse
 
-Il faut être honnête : les performances sont assez moyennes en conditions réelles, et c'est dû à plusieurs facteurs cumulés.
+Malgré l'amélioration du modèle, les performances restent relativement limitées en conditions réelles. C'est dû à plusieurs facteurs cumulés.
 
 **L'écran tactile n'est pas fait pour ça.** Le FT3267 est un contrôleur tactile capacitif correct, mais la résolution et la fréquence de polling ne sont pas celles d'une tablette graphique. Le doigt est un outil de pointage imprécis, et les événements tactiles arrivent avec une granularité qui crée inévitablement des discontinuités dans le trait, malgré l'interpolation.
 
-**Le modèle est très petit.** Avec seulement 2 filtres de convolution, le CNN n'a quasiment pas de capacité à généraliser au-delà de la distribution exacte de MNIST. Les chiffres dessinés au doigt ont une esthétique différente (épaisseur variable, inclinaison, centrage approximatif), et le modèle n'a pas été entraîné pour gérer cette variabilité. Un modèle plus gros (genre LeNet-5 avec 6/16 filtres) serait probablement beaucoup plus robuste.
+**Le modèle reste limité malgré l'amélioration.** On est passé de 2 à 8+16 filtres et de 95.8% à 98.8% sur MNIST, ce qui est un vrai progrès. Mais 98.8% sur des données propres, centrées et normalisées, ça ne veut pas dire 98.8% sur des chiffres dessinés au doigt sur un écran tactile. L'accuracy "réelle" ressentie est bien en dessous — probablement autour de 70-80% en étant optimiste. Le modèle n'a pas été entraîné avec du data augmentation (rotation, translation, variation d'épaisseur), ce qui le rend fragile face aux variations de style d'écriture.
 
-**Les données d'entrée sont très différentes de MNIST.** C'est le point fondamental. MNIST contient des chiffres scannés, nettoyés, centrés et normalisés. Nos chiffres dessinés au doigt n'ont aucun de ces traitements. Le flou gaussien aide un peu, mais on pourrait aller plus loin : centrer automatiquement le dessin dans la grille 28×28, normaliser l'épaisseur des traits, voire appliquer un morphological thinning.
+**Le coût en mémoire est significatif.** Le modèle amélioré occupe 104 KiB de Flash et 10.3 KiB de RAM, contre 25 KiB et 3.8 KiB pour l'original. On multiplie la taille par 4 et les opérations par 14, pour un gain de 3 points d'accuracy sur MNIST. Sur la STM32L4R9 ça passe sans problème, mais le ratio coût/bénéfice invite à réfléchir : est-ce que quadrupler la mémoire pour gagner 3% vaut le coup ? En embarqué, cette question se pose systématiquement.
 
-### Ce qu'on pourrait améliorer
+**Les données d'entrée sont très différentes de MNIST.** C'est le point fondamental. MNIST contient des chiffres scannés, nettoyés, centrés et normalisés. Nos chiffres dessinés au doigt n'ont aucun de ces traitements. Le flou gaussien aide un peu, mais on pourrait aller plus loin : centrer automatiquement le dessin dans la grille 28×28, normaliser l'épaisseur des traits, voire appliquer un morphological thinning. J'ai d'ailleurs testé les images dessinées à la main directement dans le notebook (cellule "Test avec des images custom"), et même là le modèle n'est pas parfait — ce qui confirme que le problème vient autant du preprocessing que du modèle lui-même.
 
-- **Un meilleur modèle** : entraîner un CNN plus profond (4-6 couches, 16-32 filtres) avec du data augmentation (rotation, translation, épaisseur variable) pour le rendre robuste aux variations de style d'écriture
+### Ce qu'on pourrait encore améliorer
+
+- **Data augmentation à l'entraînement** : rotation aléatoire (±15°), translation, variation d'épaisseur — pour rendre le modèle robuste aux variations de style sans changer l'architecture
 - **Centrage automatique** : après le dessin, recentrer le contenu de la grille 28×28 pour que le chiffre soit au milieu, comme dans MNIST
 - **Amincissement morphologique** : normaliser l'épaisseur des traits pour se rapprocher de la distribution MNIST
-- **Polling tactile plus rapide** : réduire le délai de polling ou utiliser le DMA pour les transferts I2C
+- **Quantification int8** : réduirait la taille Flash par ~4 (de 104 KiB à ~26 KiB), ce qui rapprocherait le modèle amélioré de la taille de l'original tout en gardant l'essentiel de la précision
 
 ### En résumé
 
-C'est un bonus qui était surtout là pour le fun et pour explorer les limites d'un modèle embarqué confronté à des données réelles. Le travail en lui-même était assez minime (l'essentiel de l'infrastructure BSP est repris de l'exemple ST, le modèle est celui du prof), mais c'est satisfaisant de voir un chiffre dessiné au doigt être reconnu par un CNN qui tourne sur un micro-contrôleur. Et quand ça marche pas, c'est instructif aussi : ça illustre bien à quel point la qualité et la distribution des données d'entrée comptent, parfois plus que l'architecture du modèle elle-même.
+C'est un bonus qui était surtout là pour le fun et pour explorer les limites d'un modèle embarqué confronté à des données réelles. Le travail en lui-même était assez minime (l'essentiel de l'infrastructure BSP est repris de l'exemple ST, le modèle de base est celui du prof), mais l'amélioration de l'architecture et les ajustements successifs (épaisseur des traits, flou gaussien, polling tactile, interpolation) montrent bien le processus itératif qu'on retrouve dans tout projet d'IA embarquée : on déploie, on constate que ça ne marche pas comme on voudrait, on ajuste, et on recommence. C'est satisfaisant de voir un chiffre dessiné au doigt être reconnu par un CNN qui tourne sur un microcontrôleur, et quand ça marche pas, c'est instructif aussi — ça illustre bien à quel point la qualité et la distribution des données d'entrée comptent, parfois plus que l'architecture du modèle elle-même.
 
 ## Remerciements
 
