@@ -20,7 +20,7 @@
 
 ## 1. Contexte et objectif
 
-En industrie, on a généralement trois façons de gérer la maintenance d'une machine : attendre qu'elle casse (maintenance corrective, coûteux et potentiellement dangereux), la réviser à intervalles fixes (maintenance préventive, on remplace des pièces qui auraient pu durer encore longtemps), ou analyser les données de ses capteurs pour détecter les signes avant-coureurs d'une panne et intervenir au bon moment (maintenance prédictive). C'est cette troisième approche qu'on met en oeuvre ici.
+En industrie, on a généralement trois façons de gérer la maintenance d'une machine : attendre qu'elle casse (maintenance corrective, coûteux et potentiellement dangereux), la réviser à intervalles fixes (maintenance préventive, on finit par remplacer des pièces qui auraient pu durer encore longtemps), ou analyser les données de ses capteurs pour détecter les signes avant-coureurs d'une panne et intervenir au bon moment (maintenance prédictive). C'est cette troisième approche qu'on met en œuvre ici.
 
 L'idée du projet, c'est de prendre un dataset de capteurs industriels (températures, couple, vitesse de rotation, usure d'outil), d'entraîner un réseau de neurones à classifier l'état d'une machine parmi 5 catégories (fonctionnelle + 4 types de pannes), puis de déployer ce modèle sur un microcontrôleur STM32L4R9. 
 
@@ -139,7 +139,7 @@ Le premier truc qu'on remarque quand on regarde les données, c'est que la très
 
 ![Distribution des pannes](images/distribution_pannes.png)
 
-Ce déséquilibre est tout à fait réaliste (heureusement qu'il y a plus de machines qui marchent que de machines cassées), mais ça pose un vrai problème pour l'entraînement. Un modèle peut très bien atteindre 96.6% d'accuracy en répondant systématiquement "pas de panne" à tout, sans avoir rien compris aux données. C'est exactement ce qui va se passer avec le premier modèle, on le verra plus bas.
+Ce déséquilibre est réaliste (heureusement qu'il y a plus de machines qui marchent que de machines en panne), mais ça pose un vrai problème pour l'entraînement. Un modèle naïf peut très bien atteindre 96.6% d'accuracy en répondant systématiquement "pas de panne" à tout, sans avoir rien compris aux données. C'est d'ailleurs exactement ce qui se passe avec le premier modèle, on le verra plus bas.
 
 ### Types de pannes
 
@@ -161,13 +161,13 @@ HDF et OSF sont les plus fréquents. TWF est déjà assez rare. Et RNF ne compte
 
 ### Choix des entrées et sorties
 
-J'ai pas mal réfléchi à ce qu'il fallait donner en entrée au modèle. Les 5 mesures capteurs brutes (Air temperature, Process temperature, Rotational speed, Torque, Tool wear) sont un bon point de départ, mais en regardant les corrélations dans les données, j'ai ajouté deux features calculées :
+J'ai pas mal réfléchi à ce qu'il fallait donner en entrée au modèle. Les 5 mesures capteurs brutes (Air temperature, Process temperature, Rotational speed, Torque, Tool wear) sont un bon point de départ, mais en regardant les corrélations entre les variables et les types de pannes, j'ai ajouté deux features calculées :
 
 **8 entrées au total :**
 - Les 5 mesures capteurs directes
 - Le type de machine (encodé numériquement : L=0, M=1, H=2)
-- `Power = Torque × Rotational speed` — corrélé aux pannes OSF et PWF, ce qui est logique physiquement (une puissance anormale signale une surcharge ou un problème électrique)
-- `delta_T = Process temperature - Air temperature` — un bon indicateur pour HDF puisque c'est directement lié à la dissipation thermique
+- `Power = Torque × Rotational speed`, corrélé aux pannes OSF et PWF, ce qui est logique physiquement (une puissance anormale signale une surcharge ou un problème électrique)
+- `delta_T = Process temperature - Air temperature`, un bon indicateur pour HDF puisque c'est directement lié à la dissipation thermique
 
 **5 sorties (softmax) :** Functional, TWF, HDF, PWF, OSF.
 
@@ -188,7 +188,7 @@ Pour le premier essai, j'ai utilisé une architecture assez classique de MLP (Mu
 | Dense 3 | 16 | ReLU | - |
 | Sortie | 5 | Softmax | - |
 
-L'architecture est compacte, et c'est voulu. D'une part, le modèle doit tourner sur un microcontrôleur avec des ressources limitées. D'autre part, on ne classifie que 8 features, il n'y a pas besoin d'un réseau à 100 000 paramètres pour ça. J'ai quand même ajouté 3 couches cachées au lieu de 2 (certains projets se contentent de Input → 64 → Sortie) parce que ça permettait de mieux séparer HDF de PWF, qui ont des signatures assez proches dans les données.
+L'architecture est compacte, et c'est voulu. Le modèle doit tourner sur un microcontrôleur avec des ressources limitées, et on ne classifie que 8 features, donc il n'y a pas besoin d'un réseau à 100 000 paramètres pour ça. J'ai quand même ajouté 3 couches cachées au lieu de 2 (certains projets se contentent de Input → 64 → Sortie) parce que ça permettait de mieux séparer HDF de PWF, qui ont des signatures assez proches dans les données.
 
 Le dropout à 0.15 est volontairement léger. Avec un réseau aussi petit, un dropout trop agressif (genre 0.4 ou 0.5) empêchait le modèle de converger correctement. C'est quelque chose que j'ai constaté en testant : à 0.3, l'accuracy de validation oscillait pas mal et les courbes de loss étaient instables. À 0.15, le modèle apprenait de façon plus régulière.
 
@@ -198,11 +198,11 @@ Le dropout à 0.15 est volontairement léger. Avec un réseau aussi petit, un dr
 
 ![Matrice de confusion sans rééquilibrage](images/confusion_matrix_no_balance.png)
 
-L'accuracy atteint 99%. Sur le papier c'est excellent. En réalité c'est trompeur. Le modèle classe correctement presque toutes les machines fonctionnelles, et il arrive à détecter une partie des pannes HDF (recall 0.81), PWF (0.75) et OSF (0.95). Mais pour TWF, c'est le néant : recall de 0.00. Les 9 instances de TWF dans le test set sont toutes classées comme fonctionnelles.
+L'accuracy globale atteint 99%. Sur le papier c'est excellent, mais en réalité c'est trompeur. Le modèle classe correctement presque toutes les machines fonctionnelles, et il arrive à détecter une partie des pannes HDF (recall 0.81), PWF (0.75) et OSF (0.95). Mais pour TWF, c'est le néant : recall de 0.00. Les 9 instances de TWF dans le test set sont toutes classées comme fonctionnelles.
 
 Le problème, c'est que TWF ne représente qu'une trentaine d'exemples dans le training set. Le modèle n'a littéralement pas assez de matière pour apprendre à quoi ressemble cette panne, et comme il minimise la loss globale, il "préfère" classer ces cas ambigus en Functional (la classe dominante) plutôt que de risquer des erreurs.
 
-En contexte industriel, un modèle qui rate 100% d'un type de panne est inutilisable. L'accuracy globale ne veut rien dire si on ne regarde pas le recall par classe.
+En contexte industriel, un modèle qui rate systématiquement un type de panne est inutilisable. L'accuracy globale seule ne veut rien dire, il faut regarder le recall par classe.
 
 ---
 
@@ -244,7 +244,7 @@ Le rééquilibrage a corrigé le défaut principal. Les recalls par classe :
 
 TWF passe de 0.00 à 0.22, ce qui reste faible mais au moins le modèle a commencé à apprendre une signature pour cette panne. HDF et PWF s'améliorent nettement. OSF reste stable.
 
-Le compromis, c'est que 66 machines fonctionnelles sont maintenant classées à tort comme défaillantes (contre 8 avant), ce qui fait baisser l'accuracy globale à environ 96%. En contexte industriel, c'est un compromis acceptable : une inspection inutile coûte beaucoup moins cher qu'une panne non détectée. C'est mieux de prédire une fausse panne que de rater une vraie.
+Le compromis, c'est que 66 machines fonctionnelles sont maintenant classées à tort comme défaillantes (contre 8 avant), ce qui fait baisser l'accuracy globale à environ 96%. En contexte industriel, c'est un compromis tout à fait acceptable : une inspection inutile coûte beaucoup moins cher qu'une panne non détectée. Mieux vaut une fausse alerte qu'un vrai problème qui passe inaperçu.
 
 ---
 
@@ -268,8 +268,8 @@ Fichiers exportés :
 Le modèle TFLite a été importé dans STM32CubeMX via le middleware X-CUBE-AI. La configuration :
 
 - **Nom du réseau :** `ai4i` (ce nom est utilisé partout dans le code C généré : `ai_ai4i_create_and_init`, `ai_ai4i_run`, etc.)
-- **Compression :** none — le modèle fait 12 Ko de poids, il n'y a aucun intérêt à compresser
-- **Options :** `allocate-inputs` et `allocate-outputs` activées — les buffers d'entrée/sortie sont alloués dans le buffer d'activations au lieu d'être déclarés séparément, ce qui économise un peu de RAM
+- **Compression :** none, le modèle fait 12 Ko de poids, il n'y a aucun intérêt à compresser
+- **Options :** `allocate-inputs` et `allocate-outputs` activées : les buffers d'entrée/sortie sont alloués dans le buffer d'activations au lieu d'être déclarés séparément, ce qui économise un peu de RAM
 
 ![Configuration X-CUBE-AI dans CubeMX](images/config-cubeai.png)
 
@@ -292,7 +292,7 @@ Avant de générer le code, X-CUBE-AI analyse le modèle pour vérifier qu'il ti
 
 ![Graphe du modèle dans X-CUBE-AI](images/graph-ai4i-model.png)
 
-Ce graphe est généré par X-CUBE-AI et représente le pipeline d'inférence tel qu'il sera exécuté sur la STM32. L'entrée (`serving_default_keras_tensor_1470_output_array`) est un vecteur de 8 float32 — nos 8 features normalisées.
+Ce graphe est généré par X-CUBE-AI et représente le pipeline d'inférence tel qu'il sera exécuté sur la STM32. L'entrée (`serving_default_keras_tensor_1470_output_array`) est un vecteur de 8 float32, c'est-à-dire nos 8 features normalisées.
 
 Ce qu'on voit, c'est que chaque couche Dense qu'on a définie dans Keras est décomposée en deux opérations distinctes par le runtime : un bloc **Dense** (la multiplication matricielle + biais) suivi d'un bloc **Non Linearity** (la fonction d'activation). Dans Keras on écrit `Dense(64, activation='relu')` et ça a l'air d'être une seule chose, mais côté exécution C c'est bien deux étapes séparées. Les trois premières non-linéarités sont des ReLU, la dernière (`nl_4`) est le softmax qui produit les probabilités de sortie.
 
@@ -310,9 +310,9 @@ L'axe horizontal représente les opérations exécutées séquentiellement, de g
 
 Les zones cyan représentent les **activations**, c'est-à-dire les buffers temporaires qui contiennent les tenseurs intermédiaires (les vecteurs de sortie de chaque couche). On voit que les premières étapes (`gemm_0`, `gemm_1`) ont les colonnes les plus hautes : c'est logique, on y manipule les vecteurs les plus larges (64 float32 = 256 octets). À partir de `gemm_2` la hauteur diminue parce que les vecteurs passent à 32 puis 16 valeurs. À `nl_4` (la dernière activation, le softmax), l'empreinte est minimale puisqu'on ne travaille plus que sur 5 valeurs.
 
-La bande `weights_array` en haut du diagramme représente les poids du réseau. En réalité ils sont stockés en Flash (lecture seule, 13 Ko) et pas en RAM, mais le diagramme montre leur emplacement logique dans l'espace d'adressage du runtime. On voit qu'ils sont accédés par chaque opération `gemm` mais pas par les `nl` — ce qui est normal puisque les fonctions d'activation n'ont pas de paramètres appris, elles appliquent juste une fonction mathématique sur les valeurs en place.
+La bande `weights_array` en haut du diagramme représente les poids du réseau. En réalité ils sont stockés en Flash (lecture seule, 13 Ko) et pas en RAM, mais le diagramme montre leur emplacement logique dans l'espace d'adressage du runtime. On voit qu'ils sont accédés par chaque opération `gemm` mais pas par les `nl`, ce qui est normal puisque les fonctions d'activation n'ont pas de paramètres appris, elles appliquent juste une fonction mathématique sur les valeurs en place.
 
-Le point le plus important de ce diagramme, c'est le mécanisme d'**overlay mémoire** (visible via le `heap_overlay_pool`). X-CUBE-AI ne va pas allouer un buffer séparé pour chaque tenseur intermédiaire — ça demanderait 64+32+16+5 = 117 floats = 468 octets rien que pour les activations. À la place, il réutilise les mêmes zones de RAM pour des tenseurs qui n'ont pas besoin de coexister en même temps. Quand `gemm_1` s'exécute, le buffer de sortie de `gemm_0` a déjà été consommé par `nl_0_nl` et peut être écrasé. C'est grâce à ce mécanisme que le budget total d'activations n'est que de **384 octets** alors que la somme brute de tous les tenseurs intermédiaires serait bien supérieure. Concrètement, c'est une allocation/désallocation dynamique au sein d'un buffer statique de taille fixe, ce qui est typique de l'embarqué où on veut éviter le `malloc` à tout prix.
+Le point le plus important de ce diagramme, c'est le mécanisme d'**overlay mémoire** (visible via le `heap_overlay_pool`). X-CUBE-AI ne va pas allouer un buffer séparé pour chaque tenseur intermédiaire, ça demanderait 64+32+16+5 = 117 floats = 468 octets rien que pour les activations. À la place, il réutilise les mêmes zones de RAM pour des tenseurs qui n'ont pas besoin de coexister en même temps. Quand `gemm_1` s'exécute, le buffer de sortie de `gemm_0` a déjà été consommé par `nl_0_nl` et peut être écrasé. C'est grâce à ce mécanisme que le budget total d'activations n'est que de **384 octets** alors que la somme brute de tous les tenseurs intermédiaires serait bien supérieure. Concrètement, c'est une allocation/désallocation dynamique au sein d'un buffer statique de taille fixe, ce qui est typique de l'embarqué où on veut éviter le `malloc` à tout prix.
 
 #### Observations générales
 
@@ -338,7 +338,7 @@ La cross-accuracy de 100% est le point important ici. Ça veut dire que le modè
 
 La matrice de confusion de la validation desktop confirme la même répartition que Python :
 - C0 (Functional) : 1868 corrects, 66 faux positifs de panne répartis sur les autres classes
-- C1 (TWF) : seulement 2 détectés sur 9 — c'est la faiblesse connue du modèle
+- C1 (TWF) : seulement 2 détectés sur 9, c'est la faiblesse connue du modèle
 - C2 (HDF), C3 (PWF), C4 (OSF) : bien détectés globalement
 
 ### 8.4 Code embarqué : ce que j'ai écrit et pourquoi
@@ -349,7 +349,7 @@ Le protocole d'échange entre le PC et la carte est illustré ci-dessous :
 
 ![Protocole de communication UART](images/protocole_uart.png)
 
-En résumé : le PC envoie `0xAB`, la carte répond `0xCD` (synchronisation), puis on boucle — le PC envoie 32 octets (8 float32), la carte fait l'inférence et renvoie 5 octets (les probabilités en uint8). Le code ci-dessous détaille chaque étape.
+En résumé : le PC envoie `0xAB`, la carte répond `0xCD` (synchronisation), puis on boucle : le PC envoie 32 octets (8 float32), la carte fait l'inférence et renvoie 5 octets (les probabilités en uint8). Le code ci-dessous détaille chaque étape.
 
 #### Constantes et configuration
 
@@ -363,7 +363,7 @@ extern UART_HandleTypeDef huart2;
 #define ACK_BYTE 0xCD
 ```
 
-`huart2` est déclaré en `extern` parce qu'il est défini dans `main.c` par le code généré par CubeMX. C'est l'UART2 qui correspond au Virtual COM Port du ST-Link — c'est par là que transitent toutes les données.
+`huart2` est déclaré en `extern` parce qu'il est défini dans `main.c` par le code généré par CubeMX. C'est l'UART2 qui correspond au Virtual COM Port du ST-Link, c'est par là que transitent toutes les données.
 
 Le timeout de 5000 ms est volontairement large. Au début j'avais mis 1000 ms, mais il arrivait que le script Python soit un peu lent à envoyer les données (surtout au premier échantillon après la synchro), et la carte partait en timeout. 5 secondes c'est confortable sans être bloquant.
 
@@ -483,7 +483,7 @@ Le script affiche l'accuracy tous les 200 échantillons pour suivre la progressi
 
 L'accuracy sur cible est de **96.0%**, avec **0 erreur UART** sur les 1996 échantillons.
 
-Ce résultat est cohérent avec la validation desktop (96.04%). La différence de 0.04% s'explique par la conversion float → uint8 → float qui introduit une erreur d'arrondi. En pratique, l'argmax est quasiment jamais affecté par une erreur de 0.4%.
+Ce résultat est cohérent avec la validation desktop (96.04%). L'écart de 0.04% vient de la conversion float → uint8 → float qui introduit une erreur d'arrondi, mais en pratique l'argmax n'est quasiment jamais affecté par une imprécision de 0.4%.
 
 Le fait que les 1996 inférences se soient déroulées sans aucune erreur UART confirme que le protocole de communication est fiable et que la carte exécute le modèle de façon stable. Le protocole est minimaliste (pas de checksum, pas de retry), mais sur une liaison USB-série courte et dans un environnement non bruité, ça suffit.
 
@@ -491,7 +491,7 @@ Le fait que les 1996 inférences se soient déroulées sans aucune erreur UART c
 
 ## 10. Problèmes rencontrés et bugs
 
-Cette section documente les vrais problèmes que j'ai rencontrés pendant le projet, parce qu'ils ne sont pas toujours évidents et que ça peut éviter des heures de debug à quelqu'un qui ferait un projet similaire.
+Cette section documente les problèmes concrets que j'ai rencontrés pendant le projet. Ils ne sont pas toujours évidents, et les documenter peut éviter des heures de debug à quelqu'un qui ferait un projet similaire.
 
 ### Keras 3 et X-CUBE-AI : le piège du .h5
 
@@ -501,7 +501,7 @@ Cette section documente les vrais problèmes que j'ai rencontrés pendant le pro
 
 **Solution :** Exporter en TFLite plutôt qu'en .h5. Le format TFLite a sa propre sérialisation, indépendante de celle de Keras, et X-CUBE-AI le supporte correctement. C'est d'ailleurs le format recommandé par ST pour les modèles TensorFlow.
 
-**Temps perdu :** Facilement 2 heures à chercher si le problème venait de mon modèle, de la version de TensorFlow, ou de X-CUBE-AI. La solution est tombée en lisant un thread sur le forum ST.
+**Temps perdu :** Facilement 2 heures à chercher si le problème venait de mon modèle, de la version de TensorFlow, ou de X-CUBE-AI. J'ai fini par trouver la solution sur le forum ST.
 
 ### SDMMC1 bloque le démarrage
 
@@ -535,7 +535,7 @@ Si on essaie d'écrire les données reçues par UART dans `data_ins[0]` avant qu
 
 ## 11. Limites du projet
 
-Je préfère être transparent sur ce que ce projet ne fait pas ou fait mal :
+Je préfère être honnête sur ce que ce projet ne fait pas, ou fait mal :
 
 ### TWF reste mal détecté
 
@@ -563,14 +563,14 @@ Ce projet couvre la chaîne complète de la maintenance prédictive embarquée, 
 
 Le modèle est fonctionnel et détecte la majorité des types de pannes (HDF, PWF, OSF avec des recalls > 0.85). L'accuracy sur cible de 96.0% est cohérente avec la validation desktop, ce qui montre que la conversion et le déploiement n'ont pas dégradé les performances. Le protocole UART est fiable sur les 1996 tests effectués. Le modèle est très léger (23 Ko Flash, 2.8 Ko RAM), ce qui laisse de la marge pour un éventuel enrichissement.
 
-Le point faible reste TWF (recall 0.22), et c'est un problème de données, pas d'architecture.
+Le point faible reste TWF (recall 0.22), mais c'est un problème de données avant tout, pas d'architecture.
 
 ### Pistes d'amélioration
 
 - **Plus de données pour TWF :** C'est clairement le facteur limitant. Plus de données réelles pour cette classe auraient un impact bien plus grand que n'importe quelle modification d'architecture ou d'hyperparamètres.
 - **Quantification int8 :** Réduirait la taille Flash/RAM par ~4. Pas nécessaire sur la STM32L4R9, mais ça le deviendrait sur un micro plus contraint (STM32L0, STM32G0...).
 - **CRC sur l'UART :** Ajouter un CRC8 à chaque échange permettrait de détecter les erreurs de transmission. Facile à implémenter des deux côtés.
-- **Architecture alternative :** Un réseau avec BatchNormalization ou LeakyReLU pourrait améliorer la convergence sur les classes rares. J'ai pas testé ces pistes par manque de temps, mais c'est quelque chose à explorer.
+- **Architecture alternative :** un réseau avec BatchNormalization ou LeakyReLU pourrait améliorer la convergence sur les classes rares. Je n'ai pas testé ces pistes par manque de temps, mais c'est quelque chose à explorer.
 - **Acquisition capteurs en temps réel :** Brancher de vrais capteurs (température, accéléromètre, etc.) sur la carte et faire de l'inférence en continu plutôt qu'en envoyant les données depuis un PC.
 
 ---
@@ -579,7 +579,7 @@ Le point faible reste TWF (recall 0.22), et c'est un problème de données, pas 
 
 ### L'idée
 
-Le projet principal est terminé et fonctionne, mais il reste un truc un peu frustrant : la carte a un bel écran AMOLED tactile de 390×390 pixels, et on ne l'utilise pas du tout. En cours, le professeur nous avait fourni un petit CNN pour classifier les chiffres MNIST en classe, et la carte supporte le tactile capacitif. D'où l'idée : dessiner un chiffre au doigt sur l'écran, et laisser le modèle embarqué deviner de quel chiffre il s'agit (si je suis parfaitement honnête, le professeur nous l'a suggéré, un peu comme une bouteille à la mer). C'est une quête secondaire, le but c'est surtout de s'amuser et de voir ce qui se passe quand on confronte un modèle entraîné sur des données propres à des entrées dessinées à la main sur un écran tactile pas vraiment fait pour ça.
+Le projet principal est terminé et fonctionne, mais il reste un truc un peu frustrant : la carte a un bel écran AMOLED tactile de 390×390 pixels, et on ne l'utilise pas du tout. En cours, le professeur nous avait fourni un petit CNN pour classifier les chiffres MNIST en classe, et la carte supporte le tactile capacitif. D'où l'idée : dessiner un chiffre au doigt sur l'écran, et laisser le modèle embarqué deviner de quel chiffre il s'agit (si je suis parfaitement honnête, le professeur nous l'a suggéré, un peu comme une bouteille à la mer). C'est une quête secondaire, le but c'est surtout de s'amuser et de voir ce qui se passe quand on confronte un modèle entraîné sur des données propres avec des entrées dessinées à la main sur un écran tactile pas vraiment prévu pour ça.
 
 ### Le modèle original du prof
 
@@ -589,11 +589,11 @@ Le point de départ c'est le notebook du prof (`bonus/CNN_C2_16_10/Embedded_AI_c
 |--------|--------|
 | Conv2D | 2 filtres 3×3, padding same, ReLU |
 | MaxPooling2D | 2×2 |
-| Flatten | — |
+| Flatten | - |
 | Dense | 16 neurones, ReLU |
 | Dense (sortie) | 10 neurones, softmax |
 
-Il atteint 95.8% d'accuracy sur le test set MNIST après 5 epochs. C'est honnête pour un réseau aussi petit (6 478 paramètres, 25 Ko de poids), mais c'est clairement pas un modèle de production — deux filtres de convolution, c'est le strict minimum pour extraire des features spatiales.
+Il atteint 95.8% d'accuracy sur le test set MNIST après 5 epochs. C'est honnête pour un réseau aussi petit (6 478 paramètres, 25 Ko de poids), mais c'est clairement pas un modèle de production, deux filtres de convolution, c'est le strict minimum pour extraire des features spatiales.
 
 En testant ce modèle sur la carte, les résultats étaient assez décevants : le modèle se trompait souvent, même sur des chiffres relativement bien dessinés. C'est ce qui m'a poussé à modifier l'architecture.
 
@@ -607,14 +607,14 @@ J'ai repris le notebook et modifié l'architecture pour donner plus de capacité
 | MaxPooling2D | 2×2 |
 | Conv2D | 16 filtres 3×3, padding same, ReLU |
 | MaxPooling2D | 2×2 |
-| Flatten | — |
+| Flatten | - |
 | Dropout | 0.25 |
 | Dense | 32 neurones, ReLU |
 | Dense (sortie) | 10 neurones, softmax |
 
-Les changements principaux : une deuxième couche de convolution (ça donne une hiérarchie de features — la première couche détecte des bords, la deuxième les combine en formes), beaucoup plus de filtres (8 puis 16 au lieu de 2), et un Dropout de 0.25 pour éviter l'overfitting. L'entraînement passe de 5 à 10 epochs pour laisser le temps au réseau plus profond de converger.
+Les changements principaux : une deuxième couche de convolution (ça donne une hiérarchie de features : la première couche détecte des bords, la deuxième les combine en formes), beaucoup plus de filtres (8 puis 16 au lieu de 2), et un Dropout de 0.25 pour éviter l'overfitting. L'entraînement passe de 5 à 10 epochs pour laisser le temps au réseau plus profond de converger.
 
-Le résultat : **98.8% d'accuracy** sur le test set MNIST, contre 95.8% avant. C'est un gain de 3 points, ce qui paraît modeste en valeur absolue mais qui fait une vraie différence en pratique — on passe de ~1 erreur sur 24 à ~1 erreur sur 83.
+Le résultat : **98.8% d'accuracy** sur le test set MNIST, contre 95.8% avant. C'est un gain de 3 points, ce qui paraît modeste en valeur absolue mais qui fait une vraie différence en pratique : on passe de ~1 erreur sur 24 à ~1 erreur sur 83.
 
 Pour l'export, le `.h5` de Keras 3 posait le même problème de `quantization_config` que dans le projet principal (voir section 10), donc on exporte en TFLite. Le rapport d'analyse complet est dans `bonus/CNN_C2_16_10/mnist-rapport-analyse.txt`.
 
@@ -630,13 +630,13 @@ Le compromis de cette amélioration, c'est évidemment la taille. Voici la compa
 | MACC | 23 874 | 326 712 |
 | **Accuracy MNIST** | **95.8%** | **98.8%** |
 
-On multiplie la taille par ~4 et les opérations par ~14. C'est un coût non négligeable. Sur la STM32L4R9 qui a 2 Mo de Flash et 640 Ko de RAM, ça passe largement (104 Ko c'est ~5% de la Flash), mais sur un micro plus contraint ce serait problématique. Et pour un gain de 3 points d'accuracy, on peut se demander si le ratio coût/bénéfice est vraiment optimal — un modèle intermédiaire (genre 4/8 filtres) aurait peut-être suffi.
+On multiplie la taille par ~4 et les opérations par ~14. C'est un coût non négligeable. Sur la STM32L4R9 qui a 2 Mo de Flash et 640 Ko de RAM, ça passe largement (104 Ko c'est ~5% de la Flash), mais sur un micro plus contraint ce serait problématique. Et pour un gain de 3 points d'accuracy, on peut se demander si le ratio coût/bénéfice est vraiment optimal, un modèle intermédiaire (genre 4/8 filtres) aurait peut-être suffi.
 
 Le graphe du réseau généré par X-CUBE-AI montre bien la hiérarchie des couches :
 
 ![Graphe du modèle MNIST amélioré](images/show-graph-mnist.png)
 
-On voit les deux étages Conv2D + MaxPool suivis des couches Dense. La couche `gemm_8` (Dense 784→32) concentre à elle seule 94% de la mémoire poids — c'est le goulot d'étranglement, parce que le Flatten après le deuxième MaxPool produit un vecteur de 784 valeurs (7×7×16) qui doit être multiplié par une matrice 784×32.
+On voit les deux étages Conv2D + MaxPool suivis des couches Dense. La couche `gemm_8` (Dense 784→32) concentre à elle seule 94% de la mémoire poids, c'est le goulot d'étranglement, parce que le Flatten après le deuxième MaxPool produit un vecteur de 784 valeurs (7×7×16) qui doit être multiplié par une matrice 784×32.
 
 Le diagramme de layout mémoire montre comment les activations sont réutilisées pendant l'inférence :
 
@@ -677,13 +677,13 @@ bonus/
 
 **`CNN_C2_16_10/`** contient le notebook fourni par le professeur, mais rédigé par Kévin Hector, post doctorant de l'école, et le modèle `.h5` entraîné. C'est le point de départ : on ne touche à rien dedans, on récupère juste le `.h5` pour le donner à X-CUBE-AI.
 
-**`MnistNetwork/`** est le projet CubeMX qu'on a créé en cours pour importer le modèle dans X-CUBE-AI. C'est un projet STM32 classique avec UART, mais sans aucune gestion de l'écran. Son rôle dans le bonus, c'est uniquement de servir de source pour les fichiers générés par X-CUBE-AI (le code C du réseau, les poids, le runtime). On n'a pas besoin de le compiler tel quel — on copie ses fichiers AI dans le projet final.
+**`MnistNetwork/`** est le projet CubeMX qu'on a créé en cours pour importer le modèle dans X-CUBE-AI. C'est un projet STM32 classique avec UART, mais sans aucune gestion de l'écran. Son rôle dans le bonus, c'est uniquement de servir de source pour les fichiers générés par X-CUBE-AI (le code C du réseau, les poids, le runtime). On n'a pas besoin de le compiler tel quel, on copie ses fichiers AI dans le projet final.
 
 **`MnistTouchscreen/`** est le projet qui tourne sur la carte. Il est basé sur l'exemple BSP de ST (qui gère l'écran, le tactile, le joystick), dans lequel on a intégré les fichiers X-CUBE-AI de MnistNetwork et réécrit le `main.c`.
 
 ### L'approche : repartir de l'exemple BSP
 
-Le projet CubeMX qu'on avait commencé en cours (`bonus/MnistNetwork/`) avait X-CUBE-AI configuré, mais il manquait tout ce qui concerne l'écran : les périphériques DSI, LTDC, GFXMMU, DMA2D, le driver de l'IO expander MFX qui contrôle l'alimentation de l'écran, le driver tactile FT3267... Configurer tout ça manuellement dans CubeMX aurait été très fastidieux.
+Le projet CubeMX qu'on avait commencé en cours (`bonus/MnistNetwork/`) avait X-CUBE-AI configuré, mais il manquait tout ce qui concerne l'écran : les périphériques DSI, LTDC, GFXMMU, DMA2D, le driver de l'IO expander MFX qui contrôle l'alimentation de l'écran, le driver tactile FT3267... Configurer tout ça à la main dans CubeMX aurait pris un temps fou.
 
 La solution beaucoup plus simple : repartir de l'**exemple BSP** fourni par ST dans le firmware package (`STM32Cube_FW_L4_V1.18.2/Projects/32L4R9IDISCOVERY/Examples/BSP/`). Ce projet a déjà tout ce qu'il faut : l'écran LCD fonctionne, le tactile est configuré, le joystick aussi. Il suffisait d'y ajouter X-CUBE-AI (en copiant les fichiers générés par le projet MnistNetwork) et de réécrire le `main.c` pour remplacer les démos BSP par notre logique MNIST.
 
@@ -698,9 +698,9 @@ Le code BSP d'initialisation hardware (clock, LCD, touch, MFX, interruptions) es
 
 ### Ce qui ne marchait pas (et comment on a ajusté)
 
-**Le tactile était saccadé.** Les premiers essais donnaient des gros points isolés au lieu de traits continus. Le problème venait du fait que le tactile passait par des interruptions MFX qui arrivent à une fréquence assez basse. La solution : passer en **polling continu** de `BSP_TS_GetState()` dans la boucle principale (~100 Hz), et tracer des lignes interpolées entre chaque paire de points successifs. Pour que le trait soit uniforme (pas de lignes fines entre les gros points), on dessine des cercles le long de la ligne plutôt qu'un simple `DrawLine`.
+**Le tactile était saccadé.** Les premiers essais donnaient des gros points isolés au lieu de traits continus, c'était inutilisable. Le problème venait du fait que le tactile passait par des interruptions MFX qui arrivent à une fréquence assez basse. La solution : passer en **polling continu** de `BSP_TS_GetState()` dans la boucle principale (~100 Hz), et tracer des lignes interpolées entre chaque paire de points successifs. Pour que le trait soit uniforme (pas de lignes fines entre les gros points), on dessine des cercles le long de la ligne plutôt qu'un simple `DrawLine`.
 
-**Le modèle prédisait n'importe quoi.** Les premières inférences donnaient des résultats complètement aléatoires. En fait, les chiffres dessinés au doigt sur l'écran sont très différents des images MNIST sur lesquelles le modèle a été entraîné : MNIST a des traits anti-aliasés (valeurs graduelles entre 0 et 255), alors que notre grille 28×28 n'avait que du noir (0) ou du blanc (255), avec des traits trop fins. Deux corrections :
+**Le modèle prédisait n'importe quoi.** Au début, les inférences donnaient des résultats complètement aléatoires. En fait, les chiffres dessinés au doigt sur l'écran sont très différents des images MNIST sur lesquelles le modèle a été entraîné : MNIST a des traits anti-aliasés (valeurs graduelles entre 0 et 255), alors que notre grille 28×28 n'avait que du noir (0) ou du blanc (255), avec des traits trop fins. Deux corrections :
 - **Épaissir les traits** dans la grille : un rayon de 2 cellules autour de chaque point touché, ce qui donne des traits de 3-4 pixels de large en 28×28, similaire à MNIST
 - **Appliquer un flou gaussien 3×3** sur la grille avant l'inférence, pour simuler l'anti-aliasing qu'on trouve dans les données MNIST
 
@@ -714,7 +714,7 @@ Le code BSP d'initialisation hardware (clock, LCD, touch, MFX, interruptions) es
 
 ![Zoom sur l'écran avec prédiction](images/zoom_ecran_prediction.jpeg)
 
-Avec le modèle amélioré, la différence est vraiment flagrante. Avec le modèle original du prof, j'étais content quand ça arrivait à reconnaître un chiffre une fois sur trois — il fallait s'y reprendre plusieurs fois, bien centrer, bien appuyer, et même là c'était aléatoire. Avec le nouveau modèle, ça one shot souvent : on dessine, on valide, et c'est le bon chiffre du premier coup.
+Avec le modèle amélioré, la différence est vraiment flagrante. Avec le modèle original du prof, j'étais content quand ça arrivait à reconnaître un chiffre une fois sur trois, il fallait s'y reprendre plusieurs fois, bien centrer, bien appuyer, et même là c'était aléatoire. Avec le nouveau modèle, ça one shot souvent : on dessine, on valide, et c'est le bon chiffre du premier coup.
 
 Sur la photo ci-dessus, on voit un **3** reconnu avec **99% de confiance**. Ça fait rêver dit comme ça, mais il faut être honnête : c'est loin d'être comme ça à chaque fois. Pour obtenir ce résultat, j'ai dû m'appliquer à imiter la forme des chiffres tels qu'ils apparaissent dans le dataset MNIST, c'est-à-dire des traits arrondis, bien centrés, avec une certaine épaisseur. Ce n'est pas du tout comme ça que j'écris mes 3 naturellement.
 
@@ -728,22 +728,22 @@ Malgré l'amélioration du modèle, les performances restent relativement limit�
 
 **L'écran tactile n'est pas fait pour ça.** Le FT3267 est un contrôleur tactile capacitif correct, mais la résolution et la fréquence de polling ne sont pas celles d'une tablette graphique. Le doigt est un outil de pointage imprécis, et les événements tactiles arrivent avec une granularité qui crée inévitablement des discontinuités dans le trait, malgré l'interpolation.
 
-**Le modèle reste limité malgré l'amélioration.** On est passé de 2 à 8+16 filtres et de 95.8% à 98.8% sur MNIST, ce qui est un vrai progrès. Mais 98.8% sur des données propres, centrées et normalisées, ça ne veut pas dire 98.8% sur des chiffres dessinés au doigt sur un écran tactile. L'accuracy "réelle" ressentie est bien en dessous — probablement autour de 70-80% en étant optimiste. Le modèle n'a pas été entraîné avec du data augmentation (rotation, translation, variation d'épaisseur), ce qui le rend fragile face aux variations de style d'écriture.
+**Le modèle reste limité malgré l'amélioration.** On est passé de 2 à 8+16 filtres et de 95.8% à 98.8% sur MNIST, ce qui est un vrai progrès. Mais 98.8% sur des données propres, centrées et normalisées, ça ne veut pas dire 98.8% sur des chiffres dessinés au doigt sur un écran tactile. L'accuracy "réelle" ressentie est bien en dessous, probablement autour de 70-80% en étant optimiste. Le modèle n'a pas été entraîné avec du data augmentation (rotation, translation, variation d'épaisseur), ce qui le rend fragile face aux variations de style d'écriture.
 
-**Le coût en mémoire est significatif.** Le modèle amélioré occupe 104 KiB de Flash et 10.3 KiB de RAM, contre 25 KiB et 3.8 KiB pour l'original. On multiplie la taille par 4 et les opérations par 14, pour un gain de 3 points d'accuracy sur MNIST. Sur la STM32L4R9 ça passe sans problème, mais le ratio coût/bénéfice invite à réfléchir : est-ce que quadrupler la mémoire pour gagner 3% vaut le coup ? En embarqué, cette question se pose systématiquement.
+**Le coût en mémoire est significatif.** Le modèle amélioré occupe 104 KiB de Flash et 10.3 KiB de RAM, contre 25 KiB et 3.8 KiB pour l'original. On multiplie la taille par 4 et les opérations par 14, pour un gain de 3 points d'accuracy sur MNIST. Sur la STM32L4R9 ça passe sans problème, mais le ratio coût/bénéfice invite à réfléchir : est-ce que quadrupler la mémoire pour gagner 3 points vaut le coup ? C'est le genre de question qui se pose tout le temps en embarqué.
 
-**Les données d'entrée sont très différentes de MNIST.** C'est le point fondamental. MNIST contient des chiffres scannés, nettoyés, centrés et normalisés. Nos chiffres dessinés au doigt n'ont aucun de ces traitements. Le flou gaussien aide un peu, mais on pourrait aller plus loin : centrer automatiquement le dessin dans la grille 28×28, normaliser l'épaisseur des traits, voire appliquer un morphological thinning. J'ai d'ailleurs testé les images dessinées à la main directement dans le notebook (cellule "Test avec des images custom"), et même là le modèle n'est pas parfait — ce qui confirme que le problème vient autant du preprocessing que du modèle lui-même.
+**Les données d'entrée sont très différentes de MNIST.** C'est le point fondamental. MNIST contient des chiffres scannés, nettoyés, centrés et normalisés. Nos chiffres dessinés au doigt n'ont aucun de ces traitements. Le flou gaussien aide un peu, mais on pourrait aller plus loin : centrer automatiquement le dessin dans la grille 28×28, normaliser l'épaisseur des traits, voire appliquer un morphological thinning. J'ai d'ailleurs testé les images dessinées à la main directement dans le notebook (cellule "Test avec des images custom"), et même là le modèle n'est pas parfait, ce qui confirme que le problème vient autant du preprocessing que du modèle lui-même.
 
 ### Ce qu'on pourrait encore améliorer
 
-- **Data augmentation à l'entraînement** : rotation aléatoire (±15°), translation, variation d'épaisseur — pour rendre le modèle robuste aux variations de style sans changer l'architecture
+- **Data augmentation à l'entraînement** : rotation aléatoire (±15°), translation, variation d'épaisseur, pour rendre le modèle robuste aux variations de style sans changer l'architecture
 - **Centrage automatique** : après le dessin, recentrer le contenu de la grille 28×28 pour que le chiffre soit au milieu, comme dans MNIST
 - **Amincissement morphologique** : normaliser l'épaisseur des traits pour se rapprocher de la distribution MNIST
 - **Quantification int8** : réduirait la taille Flash par ~4 (de 104 KiB à ~26 KiB), ce qui rapprocherait le modèle amélioré de la taille de l'original tout en gardant l'essentiel de la précision
 
 ### En résumé
 
-C'est un bonus qui était surtout là pour le fun et pour explorer les limites d'un modèle embarqué confronté à des données réelles. Le travail en lui-même était assez minime (l'essentiel de l'infrastructure BSP est repris de l'exemple ST, le modèle de base est celui du prof), mais l'amélioration de l'architecture et les ajustements successifs (épaisseur des traits, flou gaussien, polling tactile, interpolation) montrent bien le processus itératif qu'on retrouve dans tout projet d'IA embarquée : on déploie, on constate que ça ne marche pas comme on voudrait, on ajuste, et on recommence. C'est satisfaisant de voir un chiffre dessiné au doigt être reconnu par un CNN qui tourne sur un microcontrôleur, et quand ça marche pas, c'est instructif aussi — ça illustre bien à quel point la qualité et la distribution des données d'entrée comptent, parfois plus que l'architecture du modèle elle-même.
+C'est un bonus qui était surtout là pour le fun et pour explorer les limites d'un modèle embarqué confronté à des données réelles. Le travail en lui-même était assez minime (l'essentiel de l'infrastructure BSP est repris de l'exemple ST, le modèle de base est celui du prof), mais l'amélioration de l'architecture et les ajustements successifs (épaisseur des traits, flou gaussien, polling tactile, interpolation) montrent bien le processus itératif qu'on retrouve dans tout projet d'IA embarquée : on déploie, on constate que ça ne marche pas comme on voudrait, on ajuste, et on recommence. C'est satisfaisant de voir un chiffre dessiné au doigt être reconnu par un CNN qui tourne sur un microcontrôleur, et quand ça marche pas, c'est instructif aussi : ça illustre bien à quel point la qualité et la distribution des données d'entrée comptent, parfois plus que l'architecture du modèle elle-même.
 
 ## Remerciements
 
