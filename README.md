@@ -15,6 +15,7 @@
 11. [Limites du projet](#11-limites-du-projet)
 12. [Conclusion et pistes d'amélioration](#12-conclusion-et-pistes-damélioration)
 13. [Bonus : reconnaissance de chiffres MNIST sur écran tactile](#13-bonus--reconnaissance-de-chiffres-mnist-sur-écran-tactile)
+14. [Remerciements](#remerciements)
 
 ---
 
@@ -710,9 +711,9 @@ Le code BSP d'initialisation hardware (clock, LCD, touch, MFX, interruptions) es
 
 ### Résultat
 
-![Vue globale de la carte avec prédiction](images/carte_globale_prediction.jpeg)
-
-![Zoom sur l'écran avec prédiction](images/zoom_ecran_prediction.jpeg)
+<p align="center">
+  <img src="images/carte_globale_prediction.jpeg" alt="Reconnaissance MNIST sur écran tactile" width="500"/>
+</p>
 
 Avec le modèle amélioré, la différence est vraiment flagrante. Avec le modèle original du prof, j'étais content quand ça arrivait à reconnaître un chiffre une fois sur trois, il fallait s'y reprendre plusieurs fois, bien centrer, bien appuyer, et même là c'était aléatoire. Avec le nouveau modèle, ça one shot souvent : on dessine, on valide, et c'est le bon chiffre du premier coup.
 
